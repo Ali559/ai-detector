@@ -10,7 +10,7 @@ defineProps<{
 </script>
 <template>
   <button
-    class="flex items-center justify-center gap-[8px] p-[8px] rounded-xl bg-background cursor-pointer hover:bg-muted"
+    class="flex items-center justify-center gap-[8px] p-[8px] rounded-xl bg-background transition-colors duration-300 ease-in-out cursor-pointer hover:bg-muted"
   >
     <GoogleIcon class="w-[16px] h-[16px]" />
     {{ text }}

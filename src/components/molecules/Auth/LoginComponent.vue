@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { InuptType } from '@/types'
 import { defineAsyncComponent, ref } from 'vue'
+import { useRouter } from 'vue-router'
 const DefaultInputGroup = defineAsyncComponent(
   () => import('@/components/atoms/DefaultInputGroup.vue'),
 )
@@ -26,6 +27,16 @@ const listOfInputs: InuptType[] = [
     type: 'password',
   },
 ]
+
+// hooks
+const router = useRouter()
+// Methods
+const handleSubmit = (e: Event) => {
+  e.preventDefault()
+  isLoading.value = true
+  localStorage.setItem('token', 'token')
+  router.push('/')
+}
 </script>
 <template>
   <div class="bg-card text-card-foreground flex flex-col gap-[8px] rounded-xl border p-[16px]">
@@ -38,7 +49,7 @@ const listOfInputs: InuptType[] = [
     <LineWithOr />
 
     <!-- Form -->
-    <form @submit="(e) => e.preventDefault()" class="flex flex-col gap-[16px]">
+    <form @submit="handleSubmit" class="flex flex-col gap-[16px]">
       <!-- Input Groups -->
       <DefaultInputGroup v-for="(item, index) in listOfInputs" :key="index" v-bind="item" />
 
@@ -46,7 +57,7 @@ const listOfInputs: InuptType[] = [
       <DefaultButton
         :disabled="isLoading"
         :text="isLoading ? 'Signing in...' : 'Sign in'"
-        @button-clicked="isLoading = true"
+        @button-clicked="handleSubmit"
       />
     </form>
   </div>
