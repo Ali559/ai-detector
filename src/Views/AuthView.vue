@@ -2,6 +2,9 @@
 import type { ITab } from '@/types'
 import { defineAsyncComponent, ref } from 'vue'
 const TabComponent = defineAsyncComponent(() => import('@/components/atoms/TabComponent.vue'))
+const LoginComponent = defineAsyncComponent(
+  () => import('@/components/molecules/LoginComponent.vue'),
+)
 const tabs: ITab[] = [
   {
     id: 'login',
@@ -25,5 +28,10 @@ const selectedTab = ref<ITab>(tabs[0])
 
     <!-- Tabs -->
     <TabComponent :tabs="tabs" @tab-click="selectedTab = $event" :selected-tab="selectedTab" />
+
+    <!-- Tab Content -->
+    <div class="mt-[4px]">
+      <LoginComponent v-if="selectedTab.id === 'login'" />
+    </div>
   </div>
 </template>
