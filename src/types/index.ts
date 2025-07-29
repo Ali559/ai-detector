@@ -29,3 +29,8 @@ export interface StatusState {
   message: string
   type: 'loading' | 'error' | 'success' | ''
 }
+
+export interface ITab {
+  id: string;
+  name: string;
+}
