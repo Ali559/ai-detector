@@ -12,7 +12,7 @@ const emit = defineEmits<{
 </script>
 <template>
   <div
-    class="bg-muted text-muted-foreground h-[30px] w-full flex items-center justify-center rounded-xl p-[3px]"
+    class="bg-muted text-muted-foreground h-[30px] w-full flex items-center justify-center rounded-full p-[3px]"
   >
     <button
       :class="selectedTab.id === tab.id ? 'bg-background' : ''"

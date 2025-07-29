@@ -34,3 +34,10 @@ export interface ITab {
   id: string;
   name: string;
 }
+
+export interface InuptType {
+  id: string;
+  label: string;
+  placeHolder: string;
+  type: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'week' | 'month' | 'color' | 'checkbox' | 'radio' | 'file' | 'range' | 'select-one' | 'select-multiple' | 'submit' | 'reset' | 'button' | 'image' | 'hidden' | 'textarea';
+}
