@@ -1,19 +1,41 @@
 {
-  "manifest_version": 3,
-  "name": "AI Video Detector",
-  "description": "An Extension to detect if videos are AI generated",
-  "version": "1.0",
-  "action": {
-    "default_popup": "index.html",
-    "default_icon": "logo.svg"
+  "manifest_version": 2,
+  "name": "Video Frame Capturer",
+  "version": "1.0.0",
+  "description": "Capture frames from playing videos on any webpage",
+
+  "permissions": ["activeTab", "storage"],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
   },
-  "permissions": ["activeTab", "scripting"],
-  "host_permissions": ["http://*/*", "https://*/*"],
 
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["./assets/content.js"]
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
-  ]
+  ],
+
+  "browser_action": {
+    "default_popup": "index.html",
+    "default_title": "Capture Video Frames",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "web_accessible_resources": ["popup.html"]
 }

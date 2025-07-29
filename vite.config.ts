@@ -1,34 +1,34 @@
-import { fileURLToPath, URL } from 'node:url'
-
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
-import path from 'path'
+import { resolve } from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    vue(),
-    vueDevTools(),
-  ],
+  plugins: [vue()],
   build: {
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
-        content: path.resolve(__dirname, './src/content.ts')
+        popup: resolve(__dirname, 'index.html'),
+        background: resolve(__dirname, 'src/background/background.ts'),
+        content: resolve(__dirname, 'src/content/content.ts')
       },
       output: {
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]'
+        entryFileNames: (chunkInfo) => {
+          const name = chunkInfo.name
+          if (name === 'background') return 'background.js'
+          if (name === 'content') return 'content.js'
+          return `${name}.js`
+        },
+        chunkFileNames: 'chunks/[name].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.names.includes('index.html')) return 'popup.html'
+          return 'assets/[name].[ext]'
+        }
       }
     },
     outDir: 'dist',
     emptyOutDir: true
   },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
-  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+  }
 })
