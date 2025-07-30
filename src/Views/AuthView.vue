@@ -1,18 +1,5 @@
 <script setup lang="ts">
 import TabCards from '@/components/molecules/Auth/TabCards.vue'
-// import type { ITab } from '@/types'
-// const tabs: ITab[] = [
-//   {
-//     id: 'login',
-//     name: 'Login',
-//   },
-//   {
-//     id: 'signup',
-//     name: 'Sign Up',
-//   },
-// ]
-
-// const selectedTab = ref<ITab>(tabs[0])
 </script>
 <template>
   <div class="h-full flex flex-col">

@@ -2,31 +2,34 @@
 import Button from '@/components/ui/button/Button.vue'
 import type { IUser } from '@/types'
 import { LogOut } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 interface Props {
   user: IUser
 }
-defineProps<Props>()
-
+const props = defineProps<Props>()
+const router = useRouter()
 // methods
-const handleLogout = () => localStorage.removeItem('token')
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  router.push('/auth')
+}
 </script>
 <template>
-  <section className="p-[16px] border-b border-border">
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-[12px]">
-        <!-- Avatar -->
-        <div class="bg-muted flex items-center justify-center rounded-full w-[32px] h-[32px]">
-          {{ user.name.charAt(0) }}
+  <div class="p-4 border-b border-border">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-border rounded-full w-8 h-8 flex items-center justify-center">
+          {{ props.user.name.charAt(0) }}
         </div>
         <div>
-          <p className="text-sm font-medium">{{ user.name }}</p>
-          <p className="text-xs text-muted-foreground">{{ user.email }}</p>
+          <p class="text-sm font-medium">{{ props.user.name }}</p>
+          <p class="text-xs text-muted-foreground">{{ props.user.email }}</p>
         </div>
       </div>
       <Button variant="ghost" size="sm" @click.capture="handleLogout">
-        <LogOut className="h-4 w-4" />
+        <LogOut class="h-4 w-4" />
       </Button>
     </div>
     <h2>AI Video Analyzer</h2>
-  </section>
+  </div>
 </template>

@@ -54,3 +54,6 @@ export interface IStep {
   title: string;
   description?: string;
 }
+
+export type ProcessState = 'idle' | 'extracting' | 'extracted' | 'analyzing' | 'completed';
+

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IStep, IUser } from '@/types'
+import type { IStep, IUser, ProcessState } from '@/types'
 import { defineAsyncComponent, ref } from 'vue'
 const HeaderComponent = defineAsyncComponent(
   () => import('@/components/molecules/Home/HeaderComponent.vue'),
@@ -40,12 +40,12 @@ const steps: IStep[] = [
   },
 ]
 
-const currentStep = ref<IStep>(steps[0])
+const currentStep = ref<ProcessState>('idle')
 </script>
 <template>
-  <!-- Header Component  -->
-  <HeaderComponent :user="userData" />
+  <div class="felx flex-col h-full">
+    <HeaderComponent :user="userData" />
 
-  <!-- Main Content -->
-  <MainContent :current-step="currentStep" />
+    <MainContent :user="userData" :steps="steps" :currentStep="currentStep" />
+  </div>
 </template>

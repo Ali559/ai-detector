@@ -1,36 +1,30 @@
 <script setup lang="ts">
-import DefaultDropdownInput from '@/components/atoms/DefaultDropdownInput.vue'
-import type { IStep } from '@/types'
-
+import IdleCard from './IdleCard.vue'
+import ExtractingCard from './ExtractingCard.vue'
+import ExtractedCard from './ExtractedCard.vue'
+import AnalysisInProgressCard from './AnalysisInProgressCard.vue'
+import AnalysisCompleteCard from './AnalysisCompleteCard.vue'
+import type { ProcessState } from '@/types'
 interface Props {
-  currentStep: IStep
+  currentStep: ProcessState
 }
 defineProps<Props>()
-
-const dropdownItems = [
-  '1 frame',
-  '2 frames',
-  '3 frames',
-  '4 frames',
-  '5 frames',
-  '6 frames',
-  '7 frames',
-  '8 frames',
-  '9 frames',
-  '10 frames',
-]
 </script>
 <template>
-  <section class="p-[16px]">
-    <div class="border border-border rounded-[8px] p-[16px]">
-      <h4 class="leading-none">{{ currentStep.title }}</h4>
-      <p v-if="currentStep.description" class="text-muted-foreground leading-none">
-        {{ currentStep.description }}
-      </p>
+  <div class="flex-1 p-4 overflow-y-auto space-y-4">
+    <!-- Extract Video Frames -->
+    <IdleCard v-if="currentStep === 'idle'" />
 
-      <div class="mt-[16px]">
-        <DefaultDropdownInput :frames='dropdownItems' />
-      </div>
-    </div>
-  </section>
+    <!-- Extracting Frames... -->
+    <ExtractingCard v-if="currentStep === 'extracting'" />
+
+    <!-- Extracted Frames -->
+    <ExtractedCard v-if="currentStep === 'extracted'" />
+
+    <!-- Analysis in Progress -->
+    <AnalysisInProgressCard v-if="currentStep === 'analyzing'" />
+
+    <!-- Analysis Complete -->
+    <AnalysisCompleteCard v-if="currentStep === 'completed'" />
+  </div>
 </template>
