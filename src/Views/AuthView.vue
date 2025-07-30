@@ -5,9 +5,9 @@ import TabCards from '@/components/molecules/Auth/TabCards.vue'
   <div class="h-full flex flex-col">
     <div class="p-6">
       <!-- Header Section -->
-      <div className="text-center mb-6">
+      <div class="text-center mb-6">
         <h1>AI Video Analyzer</h1>
-        <p className="text-muted-foreground mt-2">Detect AI-generated content in videos</p>
+        <p class="text-muted-foreground mt-2">Detect AI-generated content in videos</p>
       </div>
 
       <TabCards />
