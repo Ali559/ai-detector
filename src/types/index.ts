@@ -41,3 +41,16 @@ export interface InuptType {
   placeHolder: string;
   type: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'week' | 'month' | 'color' | 'checkbox' | 'radio' | 'file' | 'range' | 'select-one' | 'select-multiple' | 'submit' | 'reset' | 'button' | 'image' | 'hidden' | 'textarea';
 }
+
+
+export interface IUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface IStep {
+  id: string;
+  title: string;
+  description?: string;
+}
