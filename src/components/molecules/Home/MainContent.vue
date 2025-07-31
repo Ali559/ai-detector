@@ -5,13 +5,41 @@ import ExtractedCard from './ExtractedCard.vue'
 import AnalysisInProgressCard from './AnalysisInProgressCard.vue'
 import AnalysisCompleteCard from './AnalysisCompleteCard.vue'
 import type { ProcessState } from '@/types'
-interface Props {
-  currentStep: ProcessState
-}
-defineProps<Props>()
+import { ref } from 'vue'
+// import { useFramesStore } from '@/store/framesStore'
+import { FileWarningIcon } from 'lucide-vue-next'
+import AlertComponent from '@/components/atoms/AlertComponent.vue'
+
+const currentStep = ref<ProcessState>('idle')
+
+// const { setFrames, addFrame } = useFramesStore()
+const error = ref<string | undefined>('')
+// const captureFrames = async (frameCount: number) => {
+//   const result: CaptureResult = await browser.runtime.sendMessage({
+//     action: 'captureFrames',
+//     frameCount: frameCount,
+//   })
+
+//   browser.runtime.onMessage.addListener((message) => {
+//     if(message.action === 'frameCaptured') {
+//       currentStep.value = 'extracting'
+
+//       addFrame(message.frae)
+//       frameNumber: i + 1,
+//             totalFrames: frameCount,
+//             timestamp: video.currentTime
+//     }
+//   })
+// }
 </script>
 <template>
   <div class="flex-1 p-4 overflow-y-auto space-y-4">
+    <AlertComponent
+      v-if="error"
+      title="Error Capturing Frames"
+      :icon="FileWarningIcon"
+      :description="error"
+    />
     <!-- Extract Video Frames -->
     <IdleCard v-if="currentStep === 'idle'" />
 

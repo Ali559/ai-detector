@@ -14,8 +14,11 @@ import { Play } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const frameCount = ref<'1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10'>('5')
-</script>
 
+const emit = defineEmits<{
+  (e: 'captureFrames', frameCount: number): void
+}>()
+</script>
 <template>
   <Card>
     <CardHeader>
@@ -38,7 +41,7 @@ const frameCount = ref<'1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10
           </SelectContent>
         </Select>
       </div>
-      <Button class="w-full">
+      <Button class="w-full" @click.capture="emit('captureFrames', Number(frameCount))">
         <Play class="h-4 w-4 mr-2" />
         Start Extraction
       </Button>

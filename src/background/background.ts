@@ -3,6 +3,7 @@ import type { ExtensionMessage, CaptureResult } from '../types'
 // Background script to handle communication between popup and content script
 browser.runtime.onMessage.addListener(
   async (message: ExtensionMessage, sender): Promise<CaptureResult> => {
+
     if (message.action === 'captureFrames') {
       try {
         // Get the active tab
@@ -28,3 +29,5 @@ browser.runtime.onMessage.addListener(
     return { error: 'Unknown action' }
   }
 )
+
+

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { IStep, IUser, ProcessState } from '@/types'
-import { defineAsyncComponent, ref } from 'vue'
+import type { IUser } from '@/types'
+import { defineAsyncComponent } from 'vue'
 const HeaderComponent = defineAsyncComponent(
   () => import('@/components/molecules/Home/HeaderComponent.vue'),
 )
@@ -12,40 +12,11 @@ const userData: IUser = {
   name: 'Ali Barznji',
   email: 'biz@alibarznji.dev',
 }
-
-const steps: IStep[] = [
-  {
-    id: 'extract-video-frames',
-    title: 'Extract Video Frames',
-    description: "Select how many frames to extract from the active tab's video player",
-  },
-  {
-    id: 'extracting-frames',
-    title: 'Extracting Frames...',
-    description: 'Capturing frames from the video player',
-  },
-  {
-    id: 'frames-extracted',
-    title: 'Frames Extracted',
-    description: 'frames successfully captured',
-  },
-  {
-    id: 'analyzing-frames',
-    title: 'Analyzing Frames...',
-    description: 'Processing frames with AI detection model',
-  },
-  {
-    id: 'frames-analyzed',
-    title: 'Analysis Complete',
-  },
-]
-
-const currentStep = ref<ProcessState>('idle')
 </script>
 <template>
   <div class="felx flex-col h-full">
     <HeaderComponent :user="userData" />
 
-    <MainContent :user="userData" :steps="steps" :currentStep="currentStep" />
+    <MainContent />
   </div>
 </template>

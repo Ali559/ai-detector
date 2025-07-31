@@ -4,6 +4,9 @@ import CardContent from '@/components/ui/card/CardContent.vue'
 import CardHeader from '@/components/ui/card/CardHeader.vue'
 import CardTitle from '@/components/ui/card/CardTitle.vue'
 import { Loader2 } from 'lucide-vue-next'
+
+
+
 </script>
 
 <template>
@@ -17,7 +20,8 @@ import { Loader2 } from 'lucide-vue-next'
         <Loader2 class="h-4 w-4 animate-spin" />
         <span>Extracting frame </span>
       </div>
-      <div class="grid grid-cols-2 gap-2"></div>
+      <div class="grid grid-cols-2 gap-2">
+      </div>
     </CardContent>
   </Card>
 </template>
