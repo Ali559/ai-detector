@@ -6,31 +6,34 @@ import AnalysisInProgressCard from './AnalysisInProgressCard.vue'
 import AnalysisCompleteCard from './AnalysisCompleteCard.vue'
 import type { ProcessState } from '@/types'
 import { ref } from 'vue'
-// import { useFramesStore } from '@/store/framesStore'
+import { useFramesStore } from '@/store/framesStore'
 import { FileWarningIcon } from 'lucide-vue-next'
 import AlertComponent from '@/components/atoms/AlertComponent.vue'
 
 const currentStep = ref<ProcessState>('idle')
 
-// const { setFrames, addFrame } = useFramesStore()
+const { addFrame, frames } = useFramesStore()
 const error = ref<string | undefined>('')
-// const captureFrames = async (frameCount: number) => {
-//   const result: CaptureResult = await browser.runtime.sendMessage({
-//     action: 'captureFrames',
-//     frameCount: frameCount,
-//   })
 
-//   browser.runtime.onMessage.addListener((message) => {
-//     if(message.action === 'frameCaptured') {
-//       currentStep.value = 'extracting'
+browser.runtime.onMessage.addListener((message) => {
+  if (message.action === 'frameCaptured') {
+    console.log(message)
 
-//       addFrame(message.frae)
-//       frameNumber: i + 1,
-//             totalFrames: frameCount,
-//             timestamp: video.currentTime
-//     }
-//   })
-// }
+    addFrame({
+      data: message.frameData,
+      timestamp: message.timestamp,
+      width: message.width,
+      height: message.height,
+    })
+    currentStep.value = 'extracting'
+  }
+})
+const captureFrames = async (frameCount: number) => {
+  await browser.runtime.sendMessage({
+    action: 'captureFrames',
+    frameCount: frameCount,
+  })
+}
 </script>
 <template>
   <div class="flex-1 p-4 overflow-y-auto space-y-4">
@@ -41,10 +44,10 @@ const error = ref<string | undefined>('')
       :description="error"
     />
     <!-- Extract Video Frames -->
-    <IdleCard v-if="currentStep === 'idle'" />
+    <IdleCard v-if="currentStep === 'idle'" @capture-frames="captureFrames" />
 
     <!-- Extracting Frames... -->
-    <ExtractingCard v-if="currentStep === 'extracting'" />
+    <ExtractingCard v-if="currentStep === 'extracting'" :frames="frames" />
 
     <!-- Extracted Frames -->
     <ExtractedCard v-if="currentStep === 'extracted'" />

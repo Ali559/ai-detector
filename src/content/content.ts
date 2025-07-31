@@ -83,8 +83,10 @@ async function captureVideoFrames(frameCount: number): Promise<CaptureResult> {
         browser.runtime.sendMessage({
           action: 'frameCaptured',
           frameNumber: i + 1,
-          totalFrames: frameCount,
-          timestamp: video.currentTime
+          timestamp: video.currentTime,
+          data: frameData,
+          width: canvas.width,
+          height: canvas.height
         })
         // Wait for next frame interval if not the last frame
         if (i < frameCount - 1) {

@@ -3,10 +3,12 @@ import Card from '@/components/ui/card/Card.vue'
 import CardContent from '@/components/ui/card/CardContent.vue'
 import CardHeader from '@/components/ui/card/CardHeader.vue'
 import CardTitle from '@/components/ui/card/CardTitle.vue'
+import type { CapturedFrame } from '@/types'
 import { Loader2 } from 'lucide-vue-next'
 
-
-
+defineProps<{
+  frames: CapturedFrame[]
+}>()
 </script>
 
 <template>
@@ -21,6 +23,7 @@ import { Loader2 } from 'lucide-vue-next'
         <span>Extracting frame </span>
       </div>
       <div class="grid grid-cols-2 gap-2">
+        <img v-for="(frame, index) in frames" :key="index" :src="frame.data" alt="frame" />
       </div>
     </CardContent>
   </Card>
