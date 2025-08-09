@@ -1,29 +1,32 @@
-import type { ExtensionMessage, CaptureResult, CapturedFrame, VideoInfo } from '../types'
+import { returnError } from "@/helpers";
+import type { IExtractionResponse } from "@/types"
+
 
 // Content script to find and capture frames from playing videos
 browser.runtime.onMessage.addListener(
-  async (message: ExtensionMessage): Promise<CaptureResult> => {
-    if (message.action === 'findAndCaptureVideos') {
+  async (message): Promise<unknown> => {
+    if (message.type === 'start') {
       try {
-        const result = await captureVideoFrames(message.frameCount || 3)
-        return result
+        return await captureVideoFrames(message.frameCount || 3)
       } catch (error) {
-        console.error('Content script error:', error)
-        return { error: error instanceof Error ? error.message : 'Unknown error occurred' }
+
+        returnError((error as Error).message)
+        return;
       }
     }
 
-    return { error: 'Unknown action' }
+    returnError('Unknown action')
+    return;
   }
 )
 
-async function captureVideoFrames(frameCount: number): Promise<CaptureResult> {
+async function captureVideoFrames(frameCount: number): Promise<unknown> {
   try {
     // Find all video elements on the page
     const videos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[]
 
     if (videos.length === 0) {
-      return { error: 'No video elements found on this page' }
+      return returnError('No video elements found')
     }
 
     // Find playing videos
@@ -36,19 +39,18 @@ async function captureVideoFrames(frameCount: number): Promise<CaptureResult> {
     )
 
     if (playingVideos.length === 0) {
-      return { error: 'No currently playing videos found' }
+      return returnError('No playing videos found')
     }
 
     // Use the first playing video
     const video = playingVideos[0]
-    const frames: CapturedFrame[] = []
 
     // Create a canvas to capture frames
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
 
     if (!ctx) {
-      return { error: 'Failed to create canvas context' }
+      return returnError('Failed to create canvas context')
     }
 
     // Set canvas dimensions to match video
@@ -58,8 +60,6 @@ async function captureVideoFrames(frameCount: number): Promise<CaptureResult> {
     const videoDuration = video.duration
     const currentTime = video.currentTime
 
-    // Store original time to restore later
-    const originalTime = currentTime
 
     // Calculate frame capture intervals
     const remainingDuration = videoDuration - currentTime
@@ -71,51 +71,32 @@ async function captureVideoFrames(frameCount: number): Promise<CaptureResult> {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
         // Convert to base64 image
-        const frameData = canvas.toDataURL('image/jpeg', 0.8)
+        const frameData = canvas.toDataURL('image/jpeg', 1.0)
 
-        frames.push({
-          timestamp: video.currentTime,
-          data: frameData,
-          width: canvas.width,
-          height: canvas.height
-        })
 
         browser.runtime.sendMessage({
-          action: 'frameCaptured',
-          frameNumber: i + 1,
-          timestamp: video.currentTime,
-          data: frameData,
-          width: canvas.width,
-          height: canvas.height
-        })
+          type: 'extracted',
+          data: {
+            data: frameData,
+            width: canvas.width,
+            height: canvas.height,
+            timestamp: video.currentTime,
+            duration: videoDuration,
+            frameNumber: i + 1
+          }
+        } as IExtractionResponse)
         // Wait for next frame interval if not the last frame
         if (i < frameCount - 1) {
           await seekToTime(video, Math.min(video.currentTime + interval, videoDuration - 0.1))
         }
       } catch (frameError) {
-        console.warn('Failed to capture frame:', frameError)
+        returnError((frameError as Error).message)
       }
     }
 
-    // Restore original video time
-    video.currentTime = originalTime
-
-    const videoInfo: VideoInfo = {
-      width: video.videoWidth,
-      height: video.videoHeight,
-      duration: video.duration,
-      src: video.src || video.currentSrc || 'Unknown source'
-    }
-
-    return {
-      success: true,
-      videoInfo,
-      frames,
-      totalFrames: frames.length
-    }
-
+    await browser.runtime.sendMessage({ type: 'extraction-completed' } as IExtractionResponse)
   } catch (error) {
-    return { error: `Failed to capture frames: ${error instanceof Error ? error.message : 'Unknown error'}` }
+    return returnError((error as Error).message)
   }
 }
 
@@ -131,3 +112,5 @@ function seekToTime(video: HTMLVideoElement, targetTime: number): Promise<void> 
     video.currentTime = targetTime
   })
 }
+
+

@@ -1,34 +1,31 @@
-export interface CapturedFrame {
-  timestamp: number
-  data: string
-  width: number
-  height: number
+
+// ? Essential Types
+export type ResponseType = 'extract' | 'extracted' | 'extraction-completed' | 'analyse' | 'analysed' | 'error';
+export type ProcessState = 'idle' | 'extracting' | 'extracted' | 'analyzing' | 'completed';
+
+
+export interface IVideoFrame {
+  data: Base64URLString;
+  width: number;
+  height: number;
+  timestamp: number;
+  duration: number;
+  frameNumber: number
 }
 
-export interface VideoInfo {
-  width: number
-  height: number
-  duration: number
-  src: string
+
+export interface IAction {
+  type: ResponseType;
+  frameCount: number
 }
 
-export interface CaptureResult {
-  success?: boolean
+export interface IExtractionResponse {
+  type: ResponseType;
+  data?: IVideoFrame
   error?: string
-  videoInfo?: VideoInfo
-  frames?: CapturedFrame[]
-  totalFrames?: number
 }
 
-export interface ExtensionMessage {
-  action: string
-  frameCount?: number
-}
-
-export interface StatusState {
-  message: string
-  type: 'loading' | 'error' | 'success' | ''
-}
+// * Non-Essential types
 
 export interface ITab {
   id: string;
@@ -48,12 +45,4 @@ export interface IUser {
   name: string;
   email: string;
 }
-
-export interface IStep {
-  id: string;
-  title: string;
-  description?: string;
-}
-
-export type ProcessState = 'idle' | 'extracting' | 'extracted' | 'analyzing' | 'completed';
 

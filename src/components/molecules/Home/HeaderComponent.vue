@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Button from '@/components/ui/button/Button.vue'
+import { useFramesStore } from '@/store/framesStore'
 import type { IUser } from '@/types'
 import { LogOut } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
@@ -8,9 +9,11 @@ interface Props {
 }
 const props = defineProps<Props>()
 const router = useRouter()
+const { clearFrames } = useFramesStore()
 // methods
 const handleLogout = () => {
   localStorage.removeItem('token')
+  clearFrames()
   router.push('/auth')
 }
 </script>

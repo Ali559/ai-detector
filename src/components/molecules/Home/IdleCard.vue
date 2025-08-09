@@ -35,7 +35,7 @@ const emit = defineEmits<{
             <SelectValue placeholder="Select number of frames" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem v-for="i in 10" :key="i" :value="(i + 1).toString()"
+            <SelectItem v-for="i in 10" :key="i" :value="i.toString()"
               >{{ i }} frame{{ i !== 1 ? 's' : '' }}</SelectItem
             >
           </SelectContent>
