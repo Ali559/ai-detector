@@ -1,6 +1,6 @@
 # ai-detector (Work in progress)
 
-This template should help get you started developing with Vue 3 in Vite.
+This project is licensed under the GNU Affero General Public License v3.0 – see the [LICENSE](LICENSE) file for details.
 
 ## Recommended IDE Setup
 
