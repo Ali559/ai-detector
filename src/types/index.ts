@@ -1,3 +1,16 @@
+// ? server result types
+export type HTTPResponseType = 'error' | 'success'
+export type HTTPResultType = string | {
+  confidence: number,
+  isAI: boolean
+}
+export interface IServerResponse {
+  response: HTTPResponseType,
+  message: HTTPResultType
+}
+
+
+
 
 // ? Essential Types
 export type ResponseType = 'extract' | 'extracted' | 'extraction-completed' | 'analyse' | 'analysed' | 'error';

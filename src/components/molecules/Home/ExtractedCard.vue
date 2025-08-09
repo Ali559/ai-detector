@@ -12,6 +12,7 @@ defineProps<{
 }>()
 const emit = defineEmits<{
   (e: 'reset'): void
+  (e: 'analyze'): void
 }>()
 </script>
 
@@ -37,7 +38,9 @@ const emit = defineEmits<{
         />
       </div>
       <div class="flex items-center gap-2">
-        <Button class="flex-1"><Image class="h-4 w-4" /> Analyze </Button>
+        <Button class="flex-1" @click.capture="emit('analyze')"
+          ><Image class="h-4 w-4" /> Analyze
+        </Button>
         <Button variant="outline" @click.capture="emit('reset')"> Reset </Button>
       </div>
     </CardContent>

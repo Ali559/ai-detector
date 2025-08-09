@@ -71,15 +71,28 @@ const captureFrames = async (frameCount: number) => {
         () => {
           frames = []
           currentStep = 'idle'
-          console.log(frames.length)
         }
       "
+      @analyze="currentStep = 'analyzing'"
     />
 
     <!-- Analysis in Progress -->
-    <AnalysisInProgressCard v-if="currentStep === 'analyzing'" />
+    <AnalysisInProgressCard
+      v-if="currentStep === 'analyzing'"
+      :frames="frames"
+      @analysis-complete="currentStep = 'completed'"
+    />
 
     <!-- Analysis Complete -->
-    <AnalysisCompleteCard v-if="currentStep === 'completed'" />
+    <AnalysisCompleteCard
+      v-if="currentStep === 'completed'"
+      :frames="frames"
+      @reset="
+        () => {
+          frames = []
+          currentStep = 'idle'
+        }
+      "
+    />
   </div>
 </template>
