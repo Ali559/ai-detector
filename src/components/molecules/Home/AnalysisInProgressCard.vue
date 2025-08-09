@@ -15,7 +15,7 @@ const analysisProgress = ref<number>(0)
 const startAnalysis = () => {
   setInterval(() => {
     analysisProgress.value += 10
-  }, 1000)
+  }, 200)
 }
 onMounted(() => {
   startAnalysis()
