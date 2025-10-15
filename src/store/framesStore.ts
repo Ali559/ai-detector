@@ -1,21 +1,20 @@
-import type { IVideoFrame } from "@/types";
-import { defineStore } from "pinia";
-import { ref } from "vue";
+import type { IVideoFrame } from '@/types'
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
 
-export const useFramesStore = defineStore("frames", () => {
-  const frames = ref<IVideoFrame[]>([]);
-
+export const useFramesStore = defineStore('frames', () => {
+  const frames = ref<IVideoFrame[]>([])
 
   const setFrames = (capturedFrames: IVideoFrame[]) => {
-    frames.value = capturedFrames;
-  };
+    frames.value = capturedFrames
+  }
 
   const clearFrames = () => {
-    frames.value = [];
-  };
+    frames.value = []
+  }
   const addFrame = (frame: IVideoFrame) => {
-    frames.value.push(frame);
-  };
+    frames.value.push(frame)
+  }
 
-  return { frames, setFrames, clearFrames, addFrame };
-});
+  return { frames, setFrames, clearFrames, addFrame }
+})

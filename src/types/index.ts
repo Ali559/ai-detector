@@ -1,39 +1,42 @@
 // ? server result types
 export type HTTPResponseType = 'error' | 'success'
-export type HTTPResultType = string | {
-  confidence: number,
-  isAI: boolean
-}
+export type HTTPResultType =
+  | string
+  | {
+      confidence: number
+      isAI: boolean
+    }
 export interface IServerResponse {
-  response: HTTPResponseType,
+  response: HTTPResponseType
   message: HTTPResultType
 }
 
-
-
-
 // ? Essential Types
-export type ResponseType = 'extract' | 'extracted' | 'extraction-completed' | 'analyse' | 'analysed' | 'error';
-export type ProcessState = 'idle' | 'extracting' | 'extracted' | 'analyzing' | 'completed';
-
+export type ResponseType =
+  | 'extract'
+  | 'extracted'
+  | 'extraction-completed'
+  | 'analyse'
+  | 'analysed'
+  | 'error'
+export type ProcessState = 'idle' | 'extracting' | 'extracted' | 'analyzing' | 'completed'
 
 export interface IVideoFrame {
-  data: Base64URLString;
-  width: number;
-  height: number;
-  timestamp: number;
-  duration: number;
+  data: Base64URLString
+  width: number
+  height: number
+  timestamp: number
+  duration: number
   frameNumber: number
 }
 
-
 export interface IAction {
-  type: ResponseType;
+  type: ResponseType
   frameCount: number
 }
 
 export interface IExtractionResponse {
-  type: ResponseType;
+  type: ResponseType
   data?: IVideoFrame
   error?: string
 }
@@ -41,21 +44,44 @@ export interface IExtractionResponse {
 // * Non-Essential types
 
 export interface ITab {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 export interface InuptType {
-  id: string;
-  label: string;
-  placeHolder: string;
-  type: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'week' | 'month' | 'color' | 'checkbox' | 'radio' | 'file' | 'range' | 'select-one' | 'select-multiple' | 'submit' | 'reset' | 'button' | 'image' | 'hidden' | 'textarea';
+  id: string
+  label: string
+  placeHolder: string
+  type:
+    | 'text'
+    | 'password'
+    | 'email'
+    | 'number'
+    | 'tel'
+    | 'url'
+    | 'search'
+    | 'date'
+    | 'time'
+    | 'datetime-local'
+    | 'week'
+    | 'month'
+    | 'color'
+    | 'checkbox'
+    | 'radio'
+    | 'file'
+    | 'range'
+    | 'select-one'
+    | 'select-multiple'
+    | 'submit'
+    | 'reset'
+    | 'button'
+    | 'image'
+    | 'hidden'
+    | 'textarea'
 }
-
 
 export interface IUser {
-  id: string;
-  name: string;
-  email: string;
+  id: string
+  name: string
+  email: string
 }
-

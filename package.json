@@ -14,7 +14,8 @@
     "lint:oxlint": "oxlint . --fix -D correctness --ignore-path .gitignore",
     "lint:eslint": "eslint . --fix",
     "lint": "run-s lint:*",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "lint-format": "pnpm format && pnpm lint"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

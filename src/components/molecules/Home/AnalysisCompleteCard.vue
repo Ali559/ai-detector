@@ -56,7 +56,12 @@ const analysisResult = {
         <p>• Processing time: ~{{ Math.ceil(frames.length * 0.8) }}s</p>
       </div>
 
-      <Button onClick="{resetProcess}" class="w-full" variant="outline" @click.capture='$emit("reset")'>
+      <Button
+        onClick="{resetProcess}"
+        class="w-full"
+        variant="outline"
+        @click.capture="$emit('reset')"
+      >
         Analyze Another Video
       </Button>
     </CardContent>

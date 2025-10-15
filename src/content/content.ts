@@ -1,24 +1,20 @@
-import { returnError } from "@/helpers";
-import type { IExtractionResponse } from "@/types"
-
+import { returnError } from '@/helpers'
+import type { IExtractionResponse } from '@/types'
 
 // Content script to find and capture frames from playing videos
-browser.runtime.onMessage.addListener(
-  async (message): Promise<unknown> => {
-    if (message.type === 'start') {
-      try {
-        return await captureVideoFrames(message.frameCount || 3)
-      } catch (error) {
-
-        returnError((error as Error).message)
-        return;
-      }
+browser.runtime.onMessage.addListener(async (message): Promise<unknown> => {
+  if (message.type === 'start') {
+    try {
+      return await captureVideoFrames(message.frameCount || 3)
+    } catch (error) {
+      returnError((error as Error).message)
+      return
     }
-
-    returnError('Unknown action')
-    return;
   }
-)
+
+  returnError('Unknown action')
+  return
+})
 
 async function captureVideoFrames(frameCount: number): Promise<unknown> {
   try {
@@ -30,12 +26,13 @@ async function captureVideoFrames(frameCount: number): Promise<unknown> {
     }
 
     // Find playing videos
-    const playingVideos = videos.filter(video =>
-      !video.paused &&
-      !video.ended &&
-      video.readyState >= 2 &&
-      video.videoWidth > 0 &&
-      video.videoHeight > 0
+    const playingVideos = videos.filter(
+      (video) =>
+        !video.paused &&
+        !video.ended &&
+        video.readyState >= 2 &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0,
     )
 
     if (playingVideos.length === 0) {
@@ -60,7 +57,6 @@ async function captureVideoFrames(frameCount: number): Promise<unknown> {
     const videoDuration = video.duration
     const currentTime = video.currentTime
 
-
     // Calculate frame capture intervals
     const remainingDuration = videoDuration - currentTime
     const interval = Math.max(0.5, remainingDuration / (frameCount + 1))
@@ -73,7 +69,6 @@ async function captureVideoFrames(frameCount: number): Promise<unknown> {
         // Convert to base64 image
         const frameData = canvas.toDataURL('image/jpeg', 1.0)
 
-
         browser.runtime.sendMessage({
           type: 'extracted',
           data: {
@@ -82,8 +77,8 @@ async function captureVideoFrames(frameCount: number): Promise<unknown> {
             height: canvas.height,
             timestamp: video.currentTime,
             duration: videoDuration,
-            frameNumber: i + 1
-          }
+            frameNumber: i + 1,
+          },
         } as IExtractionResponse)
         // Wait for next frame interval if not the last frame
         if (i < frameCount - 1) {
@@ -112,5 +107,3 @@ function seekToTime(video: HTMLVideoElement, targetTime: number): Promise<void> 
     video.currentTime = targetTime
   })
 }
-
-

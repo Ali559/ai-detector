@@ -8,7 +8,6 @@
  * (at your option) any later version.
  */
 
-
 import App from './popup/App.vue'
 import './assets/index.css'
 import router from './router'
