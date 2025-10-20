@@ -1,0 +1,34 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+
+
+# Python
+*/__pycache__/*
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Dependencies / Build Artifacts
+dist/
+build/
+*.egg-info/
+htmlcov/
+
+# Local/Secret Config
+*.env
+local_settings.py
+*.sqlite3
+*.db
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+/lib
