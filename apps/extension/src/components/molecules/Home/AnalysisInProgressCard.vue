@@ -4,29 +4,39 @@ import CardContent from '@/components/ui/card/CardContent.vue'
 import CardDescription from '@/components/ui/card/CardDescription.vue'
 import CardHeader from '@/components/ui/card/CardHeader.vue'
 import CardTitle from '@/components/ui/card/CardTitle.vue'
-import Progress from '@/components/ui/progress/Progress.vue'
-import type { IVideoFrame } from '@/types'
-import { onMounted, ref, watch } from 'vue'
+import { analyzeFrames } from '@/lib/analysis'
+import type { IAnalysisResult, IVideoFrame, IVideoMeta } from '@/types'
+import { Loader2 } from 'lucide-vue-next'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   frames: IVideoFrame[]
+  meta: IVideoMeta | null
 }>()
-const analysisProgress = ref<number>(0)
-const startAnalysis = () => {
-  setInterval(() => {
-    analysisProgress.value += 10
-  }, 200)
-}
-onMounted(() => {
-  startAnalysis()
-})
 
 const emit = defineEmits<{
-  (e: 'analysis-complete'): void
+  (e: 'analysis-complete', result: IAnalysisResult): void
+  (e: 'analysis-failed', error: string): void
 }>()
 
-watch(analysisProgress, () => {
-  if (analysisProgress.value === 100) emit('analysis-complete')
+const elapsed = ref(0)
+const controller = new AbortController()
+let timer: ReturnType<typeof setInterval>
+
+onMounted(async () => {
+  timer = setInterval(() => elapsed.value++, 1000)
+  try {
+    emit('analysis-complete', await analyzeFrames(props.frames, props.meta, controller.signal))
+  } catch (error) {
+    if (!controller.signal.aborted) emit('analysis-failed', (error as Error).message)
+  } finally {
+    clearInterval(timer)
+  }
+})
+
+onBeforeUnmount(() => {
+  clearInterval(timer)
+  controller.abort()
 })
 </script>
 
@@ -34,20 +44,19 @@ watch(analysisProgress, () => {
   <Card>
     <CardHeader>
       <CardTitle>Analyzing Frames...</CardTitle>
-      <CardDescription> Processing frames with AI detection model </CardDescription>
+      <CardDescription>
+        Checking faces, whole frames and motion. The first run can take a while.
+      </CardDescription>
     </CardHeader>
     <CardContent class="space-y-4">
-      <div class="space-y-2">
-        <div class="flex justify-between text-sm">
-          <span>Analysis Progress</span>
-          <span>{{ analysisProgress }}%</span>
-        </div>
-        <Progress v-model="analysisProgress" />
+      <div class="flex items-center gap-2 text-sm">
+        <Loader2 class="h-4 w-4 animate-spin" />
+        <span>{{ elapsed }}s elapsed</span>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <img
-          v-for="(frame, index) in frames"
-          :key="index"
+          v-for="frame in frames.filter((f) => f.kind === 'sparse')"
+          :key="frame.frameNumber"
           :src="frame.data"
           alt="frame"
           class="rounded-xl"

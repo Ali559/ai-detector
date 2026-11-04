@@ -13,7 +13,8 @@ import SelectValue from '@/components/ui/select/SelectValue.vue'
 import { Play } from 'lucide-vue-next'
 import { ref } from 'vue'
 
-const frameCount = ref<'1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10'>('5')
+const FRAME_COUNTS = ['8', '16', '24', '32'] as const
+const frameCount = ref<(typeof FRAME_COUNTS)[number]>('16')
 
 const emit = defineEmits<{
   (e: 'captureFrames', frameCount: number): void
@@ -24,19 +25,20 @@ const emit = defineEmits<{
     <CardHeader>
       <CardTitle>Extract Video Frames</CardTitle>
       <CardDescription>
-        Select how many frames to extract from the active tab's video player
+        Samples frames across the playing video, plus two short bursts of consecutive frames to
+        check motion
       </CardDescription>
     </CardHeader>
     <CardContent class="space-y-4 p-4">
       <div class="space-y-2">
-        <label class="block">Number of frames (1-10)</label>
+        <label class="block">Frames across the video</label>
         <Select v-model="frameCount">
           <SelectTrigger class="w-full">
             <SelectValue placeholder="Select number of frames" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem v-for="i in 10" :key="i" :value="i.toString()"
-              >{{ i }} frame{{ i !== 1 ? 's' : '' }}</SelectItem
+            <SelectItem v-for="count in FRAME_COUNTS" :key="count" :value="count"
+              >{{ count }} frames</SelectItem
             >
           </SelectContent>
         </Select>

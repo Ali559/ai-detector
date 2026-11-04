@@ -26,18 +26,16 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install PyTorch (CPU version for Docker)
-RUN pip install --no-cache-dir torch torchvision torchaudio
 
 # Copy application code
 COPY ./app /app/app
 
-# Create directory for model weights
-RUN mkdir -p /app/models
+# Bundled UnivFD probe; other weights download into /app/weights on first start
+COPY ./weights /app/weights
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV MODEL_PATH=/app/models/deepfake_detector.pth
+ENV WEIGHTS_DIR=/app/weights
 
 # Expose port
 EXPOSE 8000

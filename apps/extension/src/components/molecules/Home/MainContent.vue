@@ -4,30 +4,35 @@ import ExtractingCard from './ExtractingCard.vue'
 import ExtractedCard from './ExtractedCard.vue'
 import AnalysisInProgressCard from './AnalysisInProgressCard.vue'
 import AnalysisCompleteCard from './AnalysisCompleteCard.vue'
-import type { IExtractionResponse, IVideoFrame, ProcessState } from '@/types'
+import type {
+  IAnalysisResult,
+  IExtractionResponse,
+  IVideoFrame,
+  IVideoMeta,
+  ProcessState,
+} from '@/types'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { MailWarning } from 'lucide-vue-next'
 import AlertComponent from '@/components/atoms/AlertComponent.vue'
 
 const currentStep = ref<ProcessState>('idle')
 const frames = ref<IVideoFrame[]>([])
-// const { error, setError } = useErrorStore()
+const meta = ref<IVideoMeta | null>(null)
+const result = ref<IAnalysisResult | null>(null)
 const err = ref<string>('')
-const handleFrameExtraction = (frameExtractionResult: IExtractionResponse) => {
-  if (frameExtractionResult.type !== 'extracted') return (err.value = 'Something went wrong')
-  if (!frameExtractionResult.data) return (err.value = 'No frames extracted')
 
-  frames.value.push(frameExtractionResult.data)
-}
 const onMessage = (message: IExtractionResponse) => {
   if (message.type === 'error') {
     err.value = message.error || 'Something went wrong'
   }
   if (message.type === 'extracted') {
     currentStep.value = 'extracting'
-    handleFrameExtraction(message)
+    if (message.data) frames.value.push(message.data)
   }
-  if (message.type === 'extraction-completed') currentStep.value = 'extracted'
+  if (message.type === 'extraction-completed') {
+    meta.value = message.meta ?? null
+    currentStep.value = 'extracted'
+  }
 }
 
 onMounted(() => {
@@ -38,7 +43,16 @@ onBeforeUnmount(() => {
   browser.runtime.onMessage.removeListener(onMessage)
 })
 
+const reset = () => {
+  frames.value = []
+  meta.value = null
+  result.value = null
+  err.value = ''
+  currentStep.value = 'idle'
+}
+
 const captureFrames = async (frameCount: number) => {
+  err.value = ''
   try {
     await browser.runtime.sendMessage({
       type: 'start',
@@ -48,13 +62,23 @@ const captureFrames = async (frameCount: number) => {
     err.value = JSON.stringify(error)
   }
 }
+
+const onAnalysisComplete = (analysis: IAnalysisResult) => {
+  result.value = analysis
+  currentStep.value = 'completed'
+}
+
+const onAnalysisFailed = (message: string) => {
+  err.value = message
+  currentStep.value = 'extracted'
+}
 </script>
 <template>
   <div class="flex-1 p-4 overflow-y-auto space-y-4">
     <AlertComponent
       v-if="err"
       :description="err"
-      title="Error Capturing Frames"
+      :title="currentStep === 'extracted' ? 'Error Analyzing Frames' : 'Error Capturing Frames'"
       :icon="MailWarning"
     />
     <!-- Extract Video Frames -->
@@ -67,32 +91,30 @@ const captureFrames = async (frameCount: number) => {
     <ExtractedCard
       v-if="currentStep === 'extracted'"
       :frames="frames"
-      @reset="
+      :meta="meta"
+      @reset="reset"
+      @analyze="
         () => {
-          frames = []
-          currentStep = 'idle'
+          err = ''
+          currentStep = 'analyzing'
         }
       "
-      @analyze="currentStep = 'analyzing'"
     />
 
     <!-- Analysis in Progress -->
     <AnalysisInProgressCard
       v-if="currentStep === 'analyzing'"
       :frames="frames"
-      @analysis-complete="currentStep = 'completed'"
+      :meta="meta"
+      @analysis-complete="onAnalysisComplete"
+      @analysis-failed="onAnalysisFailed"
     />
 
     <!-- Analysis Complete -->
     <AnalysisCompleteCard
-      v-if="currentStep === 'completed'"
-      :frames="frames"
-      @reset="
-        () => {
-          frames = []
-          currentStep = 'idle'
-        }
-      "
+      v-if="currentStep === 'completed' && result"
+      :result="result"
+      @reset="reset"
     />
   </div>
 </template>

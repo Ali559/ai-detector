@@ -24,14 +24,14 @@ services:
   ai_service:
     build:
       context: ./apps/ai_service
-      dockerfile: .Dockerfile
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - MODEL_PATH=/app/models/deepfake_detector.pth
+      - WEIGHTS_DIR=/app/weights
       - CUDA_VISIBLE_DEVICES=0
     volumes:
-      - ./apps/ai_service/models:/app/models
+      - ./apps/ai_service/weights:/app/weights
       - ./apps/ai_service/app:/app/app
     deploy:
       resources:

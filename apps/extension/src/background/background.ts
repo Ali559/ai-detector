@@ -3,7 +3,10 @@ const returnError = (message: string) =>
 
 // Background script to handle communication between popup and content script
 browser.runtime.onMessage.addListener(
-  async (message: { type: string; frameCount: number }): Promise<unknown> => {
+  async (
+    message: { type: string; frameCount: number },
+    sender: browser.runtime.MessageSender,
+  ): Promise<unknown> => {
     if (message.type === 'start') {
       try {
         // Get the active tab
@@ -22,6 +25,13 @@ browser.runtime.onMessage.addListener(
       } catch (error) {
         return await returnError((error as Error).message)
       }
+    }
+
+    // Fallback for videos whose pixels the content script can't read (tainted
+    // canvas). Content scripts can't call captureVisibleTab themselves.
+    if (message.type === 'capture-visible-tab') {
+      const windowId = sender.tab?.windowId ?? browser.windows.WINDOW_ID_CURRENT
+      return browser.tabs.captureVisibleTab(windowId, { format: 'png' })
     }
   },
 )
