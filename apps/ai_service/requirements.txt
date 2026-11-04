@@ -16,6 +16,9 @@ timm==1.0.20
 huggingface-hub==0.36.0
 safetensors==0.6.2
 
+# Calibration and probe training
+scikit-learn==1.7.2
+
 # Config
 python-dotenv==1.2.1
 

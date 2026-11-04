@@ -14,6 +14,9 @@ export interface IHeadResult {
 }
 
 export interface IAnalysisResult {
+  /** detection_results row id, from the API */
+  id?: string
+  checks?: { used: number; limit: number }
   verdict: Verdict
   probability: number | null
   calibrated: boolean

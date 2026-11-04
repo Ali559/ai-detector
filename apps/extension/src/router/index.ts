@@ -1,3 +1,4 @@
+import { getToken } from '@/lib/api'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
@@ -18,13 +19,8 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
-  const isLoggedIn = Boolean(localStorage.getItem('token'))
-  if (to.name !== 'Auth' && !isLoggedIn) {
-    next({ name: 'Auth' })
-    return
-  }
-  next()
+router.beforeEach(async (to) => {
+  if (to.name !== 'Auth' && !(await getToken())) return { name: 'Auth' }
 })
 
 export default router

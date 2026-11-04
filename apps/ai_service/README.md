@@ -46,8 +46,14 @@ The response contains:
 All settings are environment variables; see `.env.example`.
 
 - **Choosing heads:** `ENABLED_HEADS` picks which heads load, for example `scene,temporal` to skip the face model.
-- **Temporal head (D3):** it stays out of the verdict until `D3_MIDPOINT` is set. To calibrate it, point `scripts/calibrate_d3.py` at folders of real and AI videos that have been through the same platform encoding as production:
+- **Calibration:** `calibration.json` (path set by `CALIBRATION_FILE`) holds per-head scaling, the fuser and the verdict thresholds. Without it, the face and scene scores are raw, D3 stays out of the verdict, and the bands come from `LIKELY_AI_THRESHOLD` and `NO_EVIDENCE_THRESHOLD`. Generate it from labelled videos:
 
   ```sh
-  .venv/bin/python -m scripts.calibrate_d3 --real data/real --fake data/ai --max-fpr 0.05
+  .venv/bin/python -m tools.calibrate run --manifest data/calib.csv --out runs/calib/scores.csv
+  .venv/bin/python -m tools.calibrate fit --scores runs/calib/scores.csv --out calibration.json
   ```
+
+- **Scene probe:** retrain it with `training/extract_features.py` and `training/train_probe.py`, then point `SCENE_HEAD_WEIGHTS` at the new `scene_probe.pth`.
+- **Exposing the service:** set `SERVICE_TOKEN` whenever it's reachable from the internet. `deploy/modal_app.py` and `deploy/runpod_setup.sh` run it on a rented GPU.
+
+The full data, training and evaluation plan is in [plans/training.md](../../plans/training.md); renting GPUs is covered in [plans/cloud-inference.md](../../plans/cloud-inference.md).

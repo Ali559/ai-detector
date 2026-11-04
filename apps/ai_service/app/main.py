@@ -1,7 +1,8 @@
 import logging
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
@@ -51,7 +52,16 @@ def health() -> HealthResponse:
     )
 
 
-@app.post("/analyze/video", response_model=AnalyzeVideoResponse)
+def require_token(authorization: str | None = Header(default=None)) -> None:
+    expected = app.state.detector.settings.service_token
+    if expected is None:
+        return
+    supplied = (authorization or "").removeprefix("Bearer ").strip()
+    if not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="Invalid service token")
+
+
+@app.post("/analyze/video", response_model=AnalyzeVideoResponse, dependencies=[Depends(require_token)])
 def analyze_video(request: AnalyzeVideoRequest) -> AnalyzeVideoResponse:
     detector: Detector = app.state.detector
     if not detector.heads:

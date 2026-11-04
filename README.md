@@ -35,6 +35,8 @@ uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requi
 cp .env.example .env
 ```
 
-On first start it downloads about 4 GB of model weights into `apps/ai_service/weights/`. See [ARCHITECTURE.md](ARCHITECTURE.md) for how detection works. `docker-compose.yml` runs the API, AI service, Postgres and Redis together.
+On first start it downloads about 4 GB of model weights into `apps/ai_service/weights/`. See [ARCHITECTURE.md](ARCHITECTURE.md) for how detection works, and [plans/](plans/README.md) for renting GPUs and training the models.
+
+The API needs Postgres: set `DATABASE_URL` in `apps/api/.env` (see `.env.example`), then run `pnpm --filter @ai-detector/api db:migrate`. `docker-compose.yml` runs the API, AI service, Postgres and Redis together.
 
 This project is licensed under the GNU Affero General Public License v3.0 – see the [LICENSE](LICENSE) file for details.

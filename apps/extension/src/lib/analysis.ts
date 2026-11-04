@@ -1,9 +1,7 @@
+import { apiFetch } from '@/lib/api'
 import type { IAnalysisResult, IVideoFrame, IVideoMeta } from '@/types'
 
-// Dev default: the AI service directly. In production this should be the API,
-// which authenticates the user and forwards to the AI service.
-const ANALYSIS_URL = import.meta.env.VITE_ANALYSIS_URL ?? 'http://localhost:8000/analyze/video'
-
+/** Send captured frames to the API, which checks the user's quota and runs the AI service. */
 export async function analyzeFrames(
   frames: IVideoFrame[],
   meta: IVideoMeta | null,
@@ -17,9 +15,8 @@ export async function analyzeFrames(
     bursts.set(index, [...(bursts.get(index) ?? []), frame])
   }
 
-  const response = await fetch(ANALYSIS_URL, {
+  return apiFetch<IAnalysisResult>('/detections', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     signal,
     body: JSON.stringify({
       video: {
@@ -36,13 +33,4 @@ export async function analyzeFrames(
       })),
     }),
   })
-
-  if (!response.ok) {
-    const detail = await response
-      .json()
-      .then((body) => (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)))
-      .catch(() => response.statusText)
-    throw new Error(`Analysis failed (${response.status}): ${detail}`)
-  }
-  return response.json()
 }

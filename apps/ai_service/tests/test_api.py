@@ -90,3 +90,17 @@ def test_rejects_undecodable_frame(client):
     response = c.post("/analyze/video", json={"frames": [{"data": "bm90IGFuIGltYWdl"}]})
     assert response.status_code == 422
     assert "not a decodable image" in response.json()["detail"]
+
+
+def test_service_token_is_enforced_when_set(client):
+    c, _ = client
+    app.state.detector.settings = Settings(service_token="s3cret")
+    try:
+        assert c.post("/analyze/video", json=body(frames=1, bursts=0)).status_code == 401
+        wrong = {"Authorization": "Bearer nope"}
+        assert c.post("/analyze/video", json=body(frames=1, bursts=0), headers=wrong).status_code == 401
+        right = {"Authorization": "Bearer s3cret"}
+        assert c.post("/analyze/video", json=body(frames=1, bursts=0), headers=right).status_code == 200
+        assert c.get("/health").status_code == 200
+    finally:
+        app.state.detector.settings = Settings()

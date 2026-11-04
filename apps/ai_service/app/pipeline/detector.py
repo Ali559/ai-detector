@@ -5,6 +5,7 @@ from dataclasses import asdict
 
 from app.config import Settings
 from app.pipeline.aggregate import fuse
+from app.pipeline.calibration import Calibration
 from app.pipeline.frames import Frame, decode_frame
 from app.pipeline.heads.base import HeadResult
 from app.pipeline.quality import assess
@@ -45,6 +46,13 @@ class Detector:
         self.settings = settings
         self.heads = heads
         self.failed = failed
+        self.calibration = (
+            Calibration.load(settings.calibration_file)
+            if settings.calibration_file.is_file()
+            else None
+        )
+        if self.calibration:
+            log.info("using calibration from %s", settings.calibration_file)
         # Heads share one device; run one request at a time.
         self._lock = threading.Lock()
 
@@ -77,7 +85,9 @@ class Detector:
         for name, error in self.failed.items():
             results.append(HeadResult.unavailable(name, "", f"failed_to_load: {error}"))
 
-        fused = fuse(results, quality, self.settings)
+        if self.calibration:
+            results = [self.calibration.apply(r) for r in results]
+        fused = fuse(results, quality, self.settings, self.calibration)
         scored = [r for r in results if r.score is not None]
         return AnalyzeVideoResponse(
             verdict=fused.verdict,
