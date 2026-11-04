@@ -5,7 +5,7 @@ import { betterAuth, User } from "better-auth";
 export const Signup = (
   auth: ReturnType<typeof betterAuth>,
   user: CreateUserDto,
-): Promise<{ user: User }> => {
+): Promise<{ user: User; token: string | null }> => {
   return auth.api.signUpEmail({
     body: {
       email: user.email,

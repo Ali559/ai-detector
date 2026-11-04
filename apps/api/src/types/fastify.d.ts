@@ -5,13 +5,17 @@ declare module "fastify" {
   interface FastifyInstance {
     db: NodePgDatabase;
     auth: ReturnType<typeof betterAuth>;
+    requireUser: (
+      request: FastifyRequest,
+      reply: FastifyReply,
+    ) => Promise<unknown>;
   }
 
   interface FastifyRequest {
     user?: {
       id: string;
       email: string;
-      role: string;
+      name: string;
     };
   }
 }

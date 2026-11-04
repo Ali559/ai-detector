@@ -9,9 +9,9 @@ Matches the reference setup (https://github.com/Zig-HS/D3): 16 frames sampled
 at 8 fps, resized to 224x224, ImageNet normalisation, XCLIP-B/16 pooled
 features, L2 distance.
 
-The statistic has no natural threshold. Until D3_MIDPOINT is calibrated on
-labelled data (scripts/calibrate_d3.py), this head reports it without a
-probability and stays out of the fused score.
+The statistic has no natural threshold, so this head only reports it
+(`details.d3_std`). calibration.json (tools/calibrate.py) maps it to a
+probability; until then the head stays out of the fused score.
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 from app.config import Settings
 from app.pipeline.frames import Frame
-from app.pipeline.heads.base import HeadResult, resolve_device, sigmoid
+from app.pipeline.heads.base import HeadResult, resolve_device
 
 REFERENCE_FPS = 8.0
 BURST_LENGTHS = (16, 8)  # XCLIP's cross-frame attention groups frames in eights
@@ -91,25 +91,11 @@ class TemporalHead:
         details: dict = {"d3_std": raw, "d3_std_per_burst": stats, "bursts_scored": len(stats)}
         if off_rate:
             details["warning"] = f"bursts not captured at {REFERENCE_FPS:g} fps"
-
-        midpoint = self.settings.d3_midpoint
-        if midpoint is None:
-            return HeadResult(
-                name=self.name,
-                model=self.model_name,
-                available=True,
-                frames_scored=frames_used,
-                reason="uncalibrated",
-                details=details,
-            )
-        score = sigmoid((midpoint - raw) / self.settings.d3_scale)
         return HeadResult(
             name=self.name,
             model=self.model_name,
             available=True,
-            score=score,
-            peak=score,
             frames_scored=frames_used,
-            calibrated=True,
+            reason="uncalibrated",
             details=details,
         )

@@ -47,16 +47,21 @@ class Settings:
         )
     )
 
-    # Temporal head: D3 (training-free). The raw statistic only becomes a
-    # probability once D3_MIDPOINT is set from calibration (scripts/calibrate_d3.py).
+    # Temporal head: D3 (training-free). Its raw statistic only becomes a
+    # probability through calibration.json.
     temporal_encoder: str = field(
         default_factory=lambda: os.getenv("TEMPORAL_ENCODER", "microsoft/xclip-base-patch16")
     )
-    d3_midpoint: float | None = field(default_factory=lambda: _float("D3_MIDPOINT", None))
-    d3_scale: float = field(default_factory=lambda: _float("D3_SCALE", 0.05) or 0.05)
 
-    # Verdict bands. Deliberately conservative: calling a real video fake is
-    # the costlier mistake.
+    # Fitted by tools/calibrate.py. When present it supersedes the bands below.
+    calibration_file: Path = field(
+        default_factory=lambda: Path(
+            os.getenv("CALIBRATION_FILE", SERVICE_ROOT / "calibration.json")
+        )
+    )
+
+    # Verdict bands used without calibration. Deliberately conservative:
+    # calling a real video fake is the costlier mistake.
     likely_ai_threshold: float = field(
         default_factory=lambda: _float("LIKELY_AI_THRESHOLD", 0.85) or 0.85
     )
@@ -68,6 +73,10 @@ class Settings:
 
     # Request limits
     max_frame_bytes: int = 8 * 1024 * 1024
+
+    # When set, /analyze/video requires "Authorization: Bearer <SERVICE_TOKEN>".
+    # Set it whenever the service is reachable from the internet.
+    service_token: str | None = field(default_factory=lambda: os.getenv("SERVICE_TOKEN") or None)
 
 
 def get_settings() -> Settings:

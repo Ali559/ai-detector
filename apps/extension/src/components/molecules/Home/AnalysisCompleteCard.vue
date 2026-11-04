@@ -79,6 +79,10 @@ const headStatus = (head: IHeadResult) => {
           Scores are not yet calibrated on real-world video. Treat this as a hint, not proof.
         </p>
         <p>Processed in {{ (result.processing_time_ms / 1000).toFixed(1) }}s</p>
+        <p v-if="result.checks">
+          {{ result.checks.limit - result.checks.used }} of {{ result.checks.limit }} checks left
+          today
+        </p>
       </div>
 
       <Button class="w-full" variant="outline" @click.capture="$emit('reset')">

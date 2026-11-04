@@ -76,7 +76,8 @@ A Manifest V2 extension that uses the WebExtension `browser.*` API (Firefox-firs
 - **Popup**: `src/popup/App.vue` plus `src/Views/*`. A Vue app with a hash router and Pinia.
   - `AuthView` holds the login and signup tabs.
   - `HomeView` and `MainContent.vue` drive a small state machine: `idle → extracting → extracted → analyzing → completed`. Each state has its own card component in `src/components/molecules/Home/`.
-  - `src/lib/analysis.ts` posts the frames to the AI service and returns its result. The URL comes from `VITE_ANALYSIS_URL` and defaults to `http://localhost:8000/analyze/video`.
+  - `src/lib/api.ts` talks to the API: sign-in, sign-up, `/auth/me` and sign-out. The session token lives in `browser.storage.local`, and a 401 clears it. The base URL comes from `VITE_API_URL` and defaults to `http://localhost:3000/api`.
+  - `src/lib/analysis.ts` posts the frames to `POST /api/detections` with the bearer token.
   - `AnalysisCompleteCard.vue` shows the verdict band, the fused probability, each head's score or the reason it could not score, and any input-quality flags.
 
 ### Message protocol
@@ -97,10 +98,20 @@ A Fastify 5 server (`src/server.ts`, `src/app.ts`) using the TypeBox type provid
 
 1. **CORS**: origin comes from `CORS_ORIGIN`, defaulting to `*`.
 2. **Database plugin** (`src/plugins/database.plugin.ts`): opens a `pg` pool on `DATABASE_URL`, checks the connection, and decorates `fastify.db` with a Drizzle instance.
-3. **Auth plugin** (`src/plugins/auth.plugin.ts`): sets up better-auth with the Drizzle adapter, email and password sign-in, and email verification, and decorates `fastify.auth`.
+3. **Auth plugin** (`src/plugins/auth.plugin.ts`):
+   - Sets up better-auth with the Drizzle adapter, email and password sign-in, and the `bearer` plugin, so the extension can send `Authorization: Bearer <session token>`.
+   - Decorates `fastify.auth`, plus a `requireUser` preHandler that resolves the session to `request.user`.
 4. **Routes** under `/api`:
-   - `POST /api/auth/signup/email`
-   - `POST /api/auth/signin/email`. Returns `{ user, token }` and sets the `Authorization` header.
+   - `POST /api/auth/signup/email` and `POST /api/auth/signin/email` return `{ user, token }`. Errors keep better-auth's status: 401 for a wrong password, 422 for an existing email.
+   - `GET /api/auth/me` and `POST /api/auth/signout`.
+   - `POST /api/detections` (signed in) runs one analysis:
+     1. Reserves a check against the user's daily quota in one atomic `UPDATE`. The counter resets on a new UTC day; at the limit the route returns 429.
+     2. Forwards the body to the AI service (`AI_SERVICE_URL`, with `AI_SERVICE_TOKEN`).
+     3. Refunds the check if the AI service fails.
+     4. Writes `detection_results`, one `frame_analyses` row per sparse frame (per-head scores and frame hash; never the frame itself) and a `usage_logs` row.
+     5. Returns the AI service's result, plus the detection `id` and `checks: { used, limit }`.
+
+Migrations live in `src/db/migrations` (`pnpm --filter @ai-detector/api db:generate` and `db:migrate`).
 
 ### Data model
 
@@ -142,48 +153,52 @@ decode (frames.py) → quality gate (quality.py) → face / scene / temporal hea
   - The bundled probe (`weights/univfd_fc.pth`) is UnivFD's original, trained on ProGAN images, so treat it as a baseline. Retraining it on modern video generators only means swapping that 768→1 layer (`SCENE_HEAD_WEIGHTS`).
 - **Temporal head** (`heads/temporal.py`):
   - **D3**: the standard deviation of second-order differences between XCLIP-B/16 frame features, on 16-frame bursts at 8 fps. Low variation means AI.
-  - The statistic has no built-in threshold. Until `D3_MIDPOINT` is set with `scripts/calibrate_d3.py`, the head reports the raw value with `reason: "uncalibrated"` and stays out of the verdict.
+  - The statistic has no built-in threshold. The head reports the raw value with `reason: "uncalibrated"`, and only `calibration.json` turns it into a probability.
 - **Fusion** (`aggregate.py`):
   - Each head's per-frame scores are averaged in logit space. The top-25% mean is reported as `peak`, to surface partial edits.
-  - Heads that produced a probability are averaged in logit space.
-  - Bands:
+  - **With `calibration.json`** (`calibration.py`, fitted by `tools/calibrate.py`): each head is Platt-scaled, heads are combined by a fitted logistic regression, and the bands use thresholds chosen for target error rates. `calibrated` is then true.
+  - **Without it**, heads that produced a probability are averaged in logit space, with fixed bands:
     - `likely_ai`: the fused score is at least 0.85, or one head is at least 0.95 across 3 or more frames. A confident face-swap hit is not averaged away by a scene head that has nothing to say about faces.
     - `no_evidence`: the fused score is at most 0.35, with no high peak and good input.
     - `inconclusive`: everything else.
-  - `calibrated` stays false until the heads and the fuser are fitted on held-out data.
+- **Auth:** when `SERVICE_TOKEN` is set, `/analyze/video` requires it as a bearer token. `/health` stays open.
+- **Tooling:**
+  - `tools/sampling.py` copies the extension's capture exactly, for offline video files.
+  - `tools/calibrate.py` scores labelled videos, then fits or evaluates a calibration.
+  - `training/` extracts CLIP crop features and trains a replacement scene probe.
+
+  All of them read the manifest format in `tools/manifest.py`. See [plans/training.md](plans/training.md).
+- **Deployment:** `deploy/modal_app.py` (serverless GPU, scales to zero) and `deploy/runpod_setup.sh` (GPU pod). See [plans/cloud-inference.md](plans/cloud-inference.md).
 
 Hugging Face weights download into `weights/` on first start (about 4 GB), and only the 4 KB UnivFD probe is committed. Licences are listed in `weights/NOTICE.md`. Vendored GenD and UnivFD code sits under `app/vendor/`, with its MIT licences.
 
-## Planned request flow
+## Request flow
 
-This is the target end-to-end flow. The steps marked ✗ in "Current state" below are not built yet.
+1. The user signs in from the popup. The API returns a session token, which the extension keeps in `browser.storage.local`.
+2. The user clicks Analyze. The content script captures sparse frames and bursts and streams them to the popup.
+3. The popup sends the frames and video context to `POST /api/detections` with the bearer token.
+4. The API checks the user's quota, forwards the frames to the AI service, and stores the scores (not the frames).
+5. The popup shows the verdict band, the fused probability, per-check evidence and the checks left today.
 
-1. The user signs in from the popup. The API returns a session token, which the extension keeps in `browser.storage`.
-2. The user clicks Analyse. The content script captures N frames and streams them to the popup.
-3. The popup sends the frames and video context (page URL, platform, duration, timestamps) to `POST /api/detections` with the bearer token.
-4. The API:
-   1. Authenticates the request and checks the user's quota.
-   2. Hashes each frame and looks it up in `detection_cache`.
-   3. Sends cache misses to the AI service.
-   4. Aggregates frame scores into a video score.
-   5. Writes `detection_results` and `frame_analyses` rows and increments usage.
-5. The popup shows a calibrated probability, a confidence band and the strongest evidence (for example, the frames that scored highest), rather than a bare yes/no.
-6. The user can flag the result as wrong. That writes to `reports` and feeds the evaluation set.
+Still planned:
+
+- **Frame cache:** `detection_cache` lookup by frame hash, to skip re-scoring frames already seen.
+- **Feedback:** a "this was wrong" button that writes to `reports` and feeds the training data (plans/training.md, phase 5).
 
 ## Current state and gaps
 
-Detection v1 works end to end in development: extension → AI service → result in the popup. What's left is routing it through the API, and calibration.
+The full flow works end to end locally: extension → API (auth, quota, storage) → AI service → result in the popup. What's left is running calibration and training on real data, and deploying (see [plans/](plans/README.md)).
 
 | Area | Status |
 | --- | --- |
 | Frame capture in the content script | ✓ Sparse frames and 8 fps bursts via canvas. ✓ Tab-capture fallback for tainted canvases (no bursts). ✗ DRM video still yields nothing |
-| Popup state machine and UI | ✓ Calls the AI service and shows the verdict band, per-head scores and quality flags. ⚠ Calls the AI service directly instead of going through the API |
-| Popup auth | ✗ `TabCards.vue` writes a fake token to `localStorage` and never calls the API. The user shown in `HomeView` is hard-coded |
-| API auth routes | ✓ Sign-up and sign-in exist. ✗ No session middleware protects other routes yet |
-| API detection routes | ✗ None. The API never calls the AI service |
-| AI service heads | ✓ Face (GenD), scene (UnivFD) and temporal (D3), with pretrained weights. ✗ Nothing is calibrated on production-like data. ✗ The scene probe is trained on GAN images, not modern video generators. ✗ D3 has no threshold until it is calibrated |
+| Popup state machine and UI | ✓ Analyzes through the API and shows the verdict band, per-check scores, quality flags and remaining checks |
+| Popup auth | ✓ Real sign-in, sign-up and sign-out against the API. ✗ No Google sign-in (no OAuth provider configured) and no email verification (no mail provider) |
+| API | ✓ Bearer sessions, `requireUser`, `POST /api/detections` with quota and persistence. ✗ `detection_cache` and `reports` aren't used yet. ✗ Not deployed |
+| AI service heads | ✓ Face (GenD), scene (UnivFD) and temporal (D3), with pretrained weights. ✗ No `calibration.json` yet, so scores are raw and D3 doesn't vote. ✗ The scene probe is still UnivFD's GAN-trained original |
+| Calibration and training | ✓ Tooling exists and has been exercised end to end on synthetic clips. ✗ Not run on real labelled data yet |
 | docker-compose | ⚠ There is no `api/Dockerfile` and no `init.sql`. It reserves an NVIDIA GPU, which does not work on macOS. The AI service image has not been rebuilt since the v1 changes |
-| Tests | ✓ The AI service has unit tests for the quality gate, fusion, head maths and the endpoint, using stub heads. ✗ The extension and the API have none |
+| Tests | ✓ The AI service has unit tests for the quality gate, fusion, calibration, sampling, manifests and the endpoint (stub heads). ✗ The extension and the API have no automated tests yet; the API was checked end to end against a local Postgres |
 
 ## Known constraints
 
@@ -219,5 +234,5 @@ What this requires elsewhere in the system:
   - Captures sparse frames plus 8 fps bursts via `requestVideoFrameCallback`.
   - Uses high-quality JPEG at native resolution.
   - Tags each frame with its capture method and the rendition size.
-- **API (to do):** store every head's output and the model versions in `detection_methods_used` and `provider_results`, so heads can be added or swapped without schema changes.
+- **API (done):** stores every head's output and model in `detection_methods_used`, `detailed_results` and `frame_analyses.provider_results`, so heads can be added or swapped without schema changes.
 - **Training:** real and fake data go through the same encode → canvas → image path as production, and visible watermarks are masked so the model can't learn them as a shortcut.
