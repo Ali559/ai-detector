@@ -1,11 +1,8 @@
 {
-  "name": "ai-detector-server",
+  "name": "@ai-detector/api",
+  "private": true,
   "type": "module",
   "version": "0.0.1",
-  "repository": {
-    "url": "https://github.com/Ali559/ai-detector-server.git",
-    "type": "git"
-  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
@@ -25,7 +22,7 @@
     "@fastify/cors": "^11.1.0",
     "@fastify/type-provider-typebox": "^6.0.0",
     "@sinclair/typebox": "^0.34.41",
-    "better-auth": "^1.0.0",
+    "better-auth": "~1.3.27",
     "drizzle-orm": "^0.44.6",
     "fastify": "^5.0.0",
     "pg": "^8.11.0",

@@ -1,0 +1,14 @@
+{
+  "name": "ai-detector",
+  "private": true,
+  "packageManager": "pnpm@11.11.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:extension": "pnpm --filter @ai-detector/extension dev",
+    "dev:api": "pnpm --filter @ai-detector/api dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format",
+    "lint-format": "pnpm -r lint-format"
+  }
+}

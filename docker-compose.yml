@@ -2,7 +2,7 @@ services:
   # Node.js API Service
   api:
     build:
-      context: ./api
+      context: ./apps/api
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
@@ -16,14 +16,14 @@ services:
     networks:
       - app-network
     volumes:
-      - ./api:/app
+      - ./apps/api:/app
       - /app/node_modules
     restart: unless-stopped
 
   # Python AI Service
   ai_service:
     build:
-      context: ./ai_service
+      context: ./apps/ai_service
       dockerfile: .Dockerfile
     ports:
       - "8000:8000"
@@ -31,8 +31,8 @@ services:
       - MODEL_PATH=/app/models/deepfake_detector.pth
       - CUDA_VISIBLE_DEVICES=0
     volumes:
-      - ./ai_service/models:/app/models
-      - ./ai_service/app:/app/app
+      - ./apps/ai_service/models:/app/models
+      - ./apps/ai_service/app:/app/app
     deploy:
       resources:
         reservations:
