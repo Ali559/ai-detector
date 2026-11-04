@@ -31,18 +31,10 @@ fi
 export HOST=${HOST:-0.0.0.0}
 export PORT=${PORT:-8000}
 export WORKERS=${WORKERS:-1}
-export MODEL_PATH=${MODEL_PATH:-/app/models/deepfake_detector.pth}
+export WEIGHTS_DIR=${WEIGHTS_DIR:-$(pwd)/weights}
 
-# Check if model exists
-if [ -f "$MODEL_PATH" ]; then
-    echo "✅ Model found at: $MODEL_PATH"
-else
-    echo "⚠️  Model not found at: $MODEL_PATH"
-    echo "📥 Service will use pretrained ImageNet weights"
-fi
-
-# Create models directory if it doesn't exist
-mkdir -p $(dirname "$MODEL_PATH")
+# Model weights (~4 GB) download into $WEIGHTS_DIR on first start
+mkdir -p "$WEIGHTS_DIR"
 
 # Run database migrations (if applicable)
 # python -m alembic upgrade head

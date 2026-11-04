@@ -1,3 +1,5 @@
+> **Outdated:** this guide predates detection v1. Endpoints, model and environment variables have changed; see [README.md](README.md).
+
 # ☁️ Cloud GPU Deployment Guide
 
 Since you can't run NVIDIA CUDA on M1 Mac, here are cloud options for GPU acceleration.

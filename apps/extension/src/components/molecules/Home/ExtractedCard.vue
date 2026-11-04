@@ -5,11 +5,18 @@ import CardContent from '@/components/ui/card/CardContent.vue'
 import CardDescription from '@/components/ui/card/CardDescription.vue'
 import CardHeader from '@/components/ui/card/CardHeader.vue'
 import CardTitle from '@/components/ui/card/CardTitle.vue'
-import type { IVideoFrame } from '@/types'
-import { Image } from 'lucide-vue-next'
-defineProps<{
+import type { IVideoFrame, IVideoMeta } from '@/types'
+import { CheckCircle, Image } from 'lucide-vue-next'
+import { computed } from 'vue'
+
+const props = defineProps<{
   frames: IVideoFrame[]
+  meta: IVideoMeta | null
 }>()
+const sparse = computed(() => props.frames.filter((f) => f.kind === 'sparse'))
+const bursts = computed(
+  () => new Set(props.frames.filter((f) => f.kind === 'burst').map((f) => f.burstIndex)).size,
+)
 const emit = defineEmits<{
   (e: 'reset'): void
   (e: 'analyze'): void
@@ -24,14 +31,20 @@ const emit = defineEmits<{
         Frames Extracted
       </CardTitle>
       <CardDescription>
-        {{ `${frames.length} Frame${frames.length === 1 ? '' : 's'} Successfully Captured` }}
+        {{ sparse.length }} frame{{ sparse.length === 1 ? '' : 's' }} and {{ bursts }} motion
+        burst{{ bursts === 1 ? '' : 's' }}
+        <template v-if="meta"> at {{ meta.width }}×{{ meta.height }}</template>
       </CardDescription>
     </CardHeader>
     <CardContent class="space-y-4">
+      <p v-if="meta?.captureMethod === 'tab_capture'" class="text-sm text-muted-foreground">
+        This site blocks direct frame access, so frames were screenshotted from the tab and motion
+        bursts were skipped. Results will be less reliable.
+      </p>
       <div class="grid grid-cols-2 gap-2 overflow-y-auto">
         <img
-          v-for="(frame, index) in frames"
-          :key="index"
+          v-for="frame in sparse"
+          :key="frame.frameNumber"
           :src="frame.data"
           alt="frame"
           class="rounded-xl"

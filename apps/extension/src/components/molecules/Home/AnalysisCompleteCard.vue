@@ -4,13 +4,38 @@ import Card from '@/components/ui/card/Card.vue'
 import CardContent from '@/components/ui/card/CardContent.vue'
 import CardHeader from '@/components/ui/card/CardHeader.vue'
 import CardTitle from '@/components/ui/card/CardTitle.vue'
-import type { IVideoFrame } from '@/types'
-import { AlertTriangle, CheckCircle } from 'lucide-vue-next'
+import type { IAnalysisResult, IHeadResult, Verdict } from '@/types'
+import { AlertTriangle, CheckCircle, HelpCircle } from 'lucide-vue-next'
 import { Separator } from 'reka-ui'
-defineProps<{ frames: IVideoFrame[] }>()
-const analysisResult = {
-  isAI: false,
-  confidence: 75,
+
+defineProps<{ result: IAnalysisResult }>()
+defineEmits<{ (e: 'reset'): void }>()
+
+const VERDICTS: Record<Verdict, { label: string; icon: typeof CheckCircle; color: string }> = {
+  likely_ai: { label: 'Likely AI-generated', icon: AlertTriangle, color: 'text-red-600' },
+  inconclusive: { label: 'Inconclusive', icon: HelpCircle, color: 'text-amber-600' },
+  no_evidence: { label: 'No evidence of AI found', icon: CheckCircle, color: 'text-green-600' },
+}
+
+const HEAD_LABELS: Record<string, string> = {
+  face: 'Faces',
+  scene: 'Whole frame',
+  temporal: 'Motion',
+}
+
+const REASONS: Record<string, string> = {
+  no_faces: 'no faces found',
+  frames_too_small: 'frames too small',
+  no_usable_bursts: 'no usable motion bursts',
+  uncalibrated: 'measured, not yet calibrated',
+}
+
+const percent = (p: number | null) => (p === null ? '—' : `${Math.round(p * 100)}%`)
+
+const headStatus = (head: IHeadResult) => {
+  if (head.score !== null) return `${percent(head.score)} (${head.frames_scored} frames)`
+  const reason = head.reason ?? ''
+  return REASONS[reason] ?? (reason.startsWith('failed_to_load') ? 'failed to load' : reason)
 }
 </script>
 
@@ -18,50 +43,45 @@ const analysisResult = {
   <Card>
     <CardHeader>
       <CardTitle class="flex items-center gap-2">
-        <AlertTriangle v-if="analysisResult.isAI" class="h-5 w-5 text-red-600" />
-
-        <CheckCircle v-else class="h-5 w-5 text-green-600" />
+        <component
+          :is="VERDICTS[result.verdict].icon"
+          class="h-5 w-5"
+          :class="VERDICTS[result.verdict].color"
+        />
         Analysis Complete
       </CardTitle>
     </CardHeader>
     <CardContent class="space-y-4">
       <div class="text-center p-6 bg-muted rounded-lg">
-        <div class="text-3xl font-bold mb-2">{{ analysisResult.confidence }}%</div>
-        <div class="text-lg mb-2">
-          <span v-if="analysisResult.isAI" class="text-red-600">AI Generated Content</span>
-
-          <span v-else class="text-green-600">Authentic Content</span>
+        <div class="text-lg mb-2" :class="VERDICTS[result.verdict].color">
+          {{ VERDICTS[result.verdict].label }}
         </div>
+        <div class="text-3xl font-bold mb-2">{{ percent(result.probability) }}</div>
         <p class="text-sm text-muted-foreground">
-          Confidence level based on {{ frames.length }} frame analysis
+          Estimated chance of AI generation from {{ result.quality.usable_frames }} usable frames
         </p>
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
-        <img
-          v-for="(frame, index) in frames"
-          :key="index"
-          :src="frame.data"
-          alt="frame"
-          class="rounded-xl"
-        />
+      <div class="space-y-1 text-sm">
+        <div v-for="head in result.heads" :key="head.name" class="flex justify-between gap-2">
+          <span>{{ HEAD_LABELS[head.name] ?? head.name }}</span>
+          <span class="text-muted-foreground text-right">{{ headStatus(head) }}</span>
+        </div>
       </div>
 
       <Separator />
 
-      <div class="space-y-2 text-sm text-muted-foreground">
-        <p><strong>Analysis Details:</strong></p>
-        <p>• Frames analyzed: {{ frames.length }}</p>
-        <p>• Detection model: AI-Video-Detector v2.1</p>
-        <p>• Processing time: ~{{ Math.ceil(frames.length * 0.8) }}s</p>
+      <div class="space-y-2 text-xs text-muted-foreground">
+        <p v-if="result.quality.flags.length">
+          Input issues: {{ result.quality.flags.join(', ').replace(/_/g, ' ') }}
+        </p>
+        <p v-if="!result.calibrated">
+          Scores are not yet calibrated on real-world video. Treat this as a hint, not proof.
+        </p>
+        <p>Processed in {{ (result.processing_time_ms / 1000).toFixed(1) }}s</p>
       </div>
 
-      <Button
-        onClick="{resetProcess}"
-        class="w-full"
-        variant="outline"
-        @click.capture="$emit('reset')"
-      >
+      <Button class="w-full" variant="outline" @click.capture="$emit('reset')">
         Analyze Another Video
       </Button>
     </CardContent>

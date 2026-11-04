@@ -6,6 +6,8 @@
     "dev": "pnpm -r --parallel dev",
     "dev:extension": "pnpm --filter @ai-detector/extension dev",
     "dev:api": "pnpm --filter @ai-detector/api dev",
+    "dev:ai": "cd apps/ai_service && .venv/bin/uvicorn app.main:app --port 8000",
+    "test:ai": "cd apps/ai_service && .venv/bin/python -m pytest -q",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",

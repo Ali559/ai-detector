@@ -1,70 +1,83 @@
-from pydantic import BaseModel, Field, validator
-from typing import Optional
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field, model_validator
 
 
-class AnalyzeRequest(BaseModel):
-    """Request schema for image analysis"""
-    image_base64: str = Field(..., description="Base64 encoded image")
-    
-    @validator('image_base64')
-    def validate_base64(cls, v):
-        if not v:
-            raise ValueError("image_base64 cannot be empty")
-        return v
+class FrameIn(BaseModel):
+    data: str = Field(..., description="Base64 image, or a data: URL (PNG or JPEG)")
+    timestamp: float | None = Field(None, description="Position in the video, seconds")
 
 
-class AnalyzeResponse(BaseModel):
-    """Response schema for image analysis"""
-    ai_score: float = Field(
-        ..., 
-        ge=0.0, 
-        le=1.0, 
-        description="AI confidence score (0-1, higher means more likely AI-generated)"
+class BurstIn(BaseModel):
+    fps: float = Field(..., gt=0, description="Rate the burst was captured at")
+    frames: list[FrameIn] = Field(..., min_length=2, max_length=32)
+
+
+class VideoMeta(BaseModel):
+    page_url: str | None = None
+    width: int | None = Field(None, description="videoWidth of the rendition captured")
+    height: int | None = Field(None, description="videoHeight of the rendition captured")
+    duration: float | None = None
+    capture_method: Literal["canvas", "tab_capture"] = "canvas"
+
+
+class AnalyzeVideoRequest(BaseModel):
+    video: VideoMeta = Field(default_factory=VideoMeta)
+    frames: list[FrameIn] = Field(
+        default_factory=list, max_length=64, description="Sparse frames across the video"
     )
-    phash: str = Field(..., description="Perceptual hash of the image")
-    embedding: list[float] = Field(
-        ..., 
-        description="768-dimensional embedding vector"
+    bursts: list[BurstIn] = Field(
+        default_factory=list, max_length=4, description="Runs of consecutive frames"
     )
-    is_flagged: bool = Field(
-        ..., 
-        description="Whether the image is flagged as suspicious"
-    )
-    inference_time_ms: int = Field(
-        ..., 
-        description="Inference time in milliseconds"
-    )
-    sha256: str = Field(..., description="SHA-256 hash of the image")
-    error: Optional[str] = Field(None, description="Error message if processing failed")
-    
-    @validator('embedding')
-    def validate_embedding(cls, v):
-        if len(v) != 768:
-            raise ValueError(f"Embedding must be 768 dimensions, got {len(v)}")
-        return v
+
+    @model_validator(mode="after")
+    def has_frames(self) -> "AnalyzeVideoRequest":
+        if not self.frames and not self.bursts:
+            raise ValueError("send at least one frame or burst")
+        return self
+
+
+class FrameScoreOut(BaseModel):
+    index: int
+    timestamp: float | None
+    score: float
+    faces: int | None = None
+
+
+class HeadOut(BaseModel):
+    name: str
+    model: str
+    available: bool
+    score: float | None = Field(None, description="P(AI) in [0, 1]; null if not scorable")
+    peak: float | None = Field(None, description="Mean of the top 25% of frame scores")
+    frames_scored: int
+    calibrated: bool
+    reason: str | None = None
+    per_frame: list[FrameScoreOut] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class QualityOut(BaseModel):
+    total_frames: int
+    usable_frames: int
+    usable_bursts: int
+    poor: bool
+    flags: list[str]
+
+
+class AnalyzeVideoResponse(BaseModel):
+    verdict: Literal["likely_ai", "inconclusive", "no_evidence"]
+    probability: float | None = Field(None, description="Fused P(AI); null if nothing scored")
+    calibrated: bool = Field(..., description="False until heads and fuser are calibrated")
+    reasons: list[str]
+    heads: list[HeadOut]
+    quality: QualityOut
+    frame_hashes: list[str] = Field(..., description="SHA-256 of each sparse frame, in order")
+    processing_time_ms: int
 
 
 class HealthResponse(BaseModel):
-    """Health check response"""
-    model_config = {"protected_namespaces": ()}  # Fix Pydantic warning
-    
-    status: str = Field(..., description="Service status")
-    model_loaded: bool = Field(..., description="Whether the model is loaded")
-    gpu_available: bool = Field(..., description="Whether GPU is available")
-
-
-class BatchAnalyzeRequest(BaseModel):
-    """Request schema for batch analysis"""
-    images_base64: list[str] = Field(
-        ..., 
-        max_items=32,
-        description="List of base64 encoded images (max 32)"
-    )
-    
-    @validator('images_base64')
-    def validate_batch_size(cls, v):
-        if len(v) == 0:
-            raise ValueError("At least one image required")
-        if len(v) > 32:
-            raise ValueError("Maximum 32 images per batch")
-        return v
+    status: str
+    heads_loaded: list[str]
+    heads_failed: dict[str, str]
+    device: str

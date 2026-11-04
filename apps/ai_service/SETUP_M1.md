@@ -1,3 +1,5 @@
+> **Outdated:** this guide predates detection v1. Endpoints, model and environment variables have changed; see [README.md](README.md).
+
 # 🍎 M1 Mac Setup Guide
 
 Special instructions for running the AI service on Apple Silicon (M1/M2/M3) Macs.

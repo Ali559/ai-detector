@@ -63,15 +63,21 @@ A Manifest V2 extension that uses the WebExtension `browser.*` API (Firefox-firs
 ### Components
 
 - **Content script**: `src/content/content.ts`. Injected into every page (`<all_urls>`). When the popup sends `start`, it:
-  1. Finds all `<video>` elements, including inside shadow roots.
-  2. Picks the first one that is playing and has decoded data.
-  3. Seeks forward through up to 30 s of the remaining video, at intervals of at least 0.5 s, and draws each frame to a canvas sized to the video's native resolution.
-  4. Encodes each frame as JPEG (quality 0.8), drops duplicates by SHA-256, and streams each one back as an `extracted` message.
-  5. Sends `extraction-completed`, then restores the original playback position.
-- **Background script**: `src/background/background.ts`. Relays `start` from the popup to the active tab's content script.
+  1. Finds all `<video>` elements, including inside shadow roots, and picks the first one that is playing and has decoded data.
+  2. Captures a **burst** of 16 consecutive frames at 8 fps from the current position, using `requestVideoFrameCallback` during normal playback. This is the input D3 was designed for.
+  3. Captures 8–32 **sparse** frames spread across the whole video, skipping the first and last 2%. For live streams, it samples once a second during playback.
+  4. Captures a second burst at 60% of the way through, if the video is at least 20 s long.
+  5. Restores the original playback position and play/pause state, then sends `extraction-completed` with the video's metadata.
+
+  Frames are drawn at the rendition's native resolution (capped at 1920 px on the long side) and encoded as JPEG at quality 0.95. Each one streams back as an `extracted` message as soon as it is captured.
+
+  If the canvas is tainted (a cross-origin video without CORS), the content script switches to **tab capture**: it asks the background script for a screenshot of the visible tab and crops it to the video. Tab capture is rate-limited to about 2 calls per second, so bursts are skipped in this mode, and every frame is tagged `captureMethod: 'tab_capture'`.
+- **Background script**: `src/background/background.ts`. Relays `start` from the popup to the active tab's content script. It also answers `capture-visible-tab`, because content scripts cannot call `tabs.captureVisibleTab` themselves.
 - **Popup**: `src/popup/App.vue` plus `src/Views/*`. A Vue app with a hash router and Pinia.
   - `AuthView` holds the login and signup tabs.
   - `HomeView` and `MainContent.vue` drive a small state machine: `idle → extracting → extracted → analyzing → completed`. Each state has its own card component in `src/components/molecules/Home/`.
+  - `src/lib/analysis.ts` posts the frames to the AI service and returns its result. The URL comes from `VITE_ANALYSIS_URL` and defaults to `http://localhost:8000/analyze/video`.
+  - `AnalysisCompleteCard.vue` shows the verdict band, the fused probability, each head's score or the reason it could not score, and any input-quality flags.
 
 ### Message protocol
 
@@ -79,12 +85,11 @@ Messages are defined in `src/types/index.ts` (`ResponseType`, `IVideoFrame`, `IE
 
 | Message | From → To | Payload |
 | --- | --- | --- |
-| `start` | popup → background → content | `frameCount` |
-| `extracted` | content → popup | `videoId`, `data: IVideoFrame` (base64 JPEG, size, timestamp, duration, frame number) |
-| `extraction-completed` | content → popup | `videoId`, `frameCount` |
+| `start` | popup → background → content | `frameCount` (number of sparse frames) |
+| `extracted` | content → popup | `videoId`, `data: IVideoFrame` (base64 JPEG, size, timestamp, `kind: 'sparse' \| 'burst'`, `burstIndex`, `captureMethod`) |
+| `extraction-completed` | content → popup | `videoId`, `frameCount`, `meta: IVideoMeta` (page URL, rendition size, duration, capture method, burst fps) |
+| `capture-visible-tab` | content → background | none. Returns a PNG data URL of the visible tab |
 | `error` | any → popup | `error` string |
-
-`analyse` and `analysed` are reserved for the analysis round trip.
 
 ## API (`apps/api`)
 
@@ -111,19 +116,43 @@ Defined in `src/schemas/schema.ts`; Drizzle Kit handles migrations (`pnpm --filt
 
 ## AI service (`apps/ai_service`)
 
-A FastAPI app (`app/main.py`). On startup, its lifespan hook loads the model through `InferenceService` (`app/services/inference.py`), which picks CUDA, then MPS, then CPU, and uses FP16 on CUDA.
+A FastAPI app (`app/main.py`). On startup it loads each enabled head (`ENABLED_HEADS`) on CUDA, MPS or CPU. A head that fails to load is reported in `/health` and in every result, rather than stopping the service.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /health` | Liveness, and whether the model is loaded |
-| `POST /analyze` | One image (multipart or base64) → `AnalyzeResponse` |
-| `POST /analyze/batch` | Several images → a list of `AnalyzeResponse` |
+| `GET /health` | Which heads loaded, which failed, and the device |
+| `POST /analyze/video` | Sparse frames plus bursts plus video metadata → verdict, per-head scores and input-quality report |
 
-`AnalyzeResponse` (`app/schemas.py`) contains `ai_score` (0–1), `is_flagged` (threshold 0.7), a 768-d `embedding`, `phash`, `sha256` and `inference_time_ms`.
+The request and response schemas are in `app/schemas.py`. The pipeline lives in `app/pipeline/`:
 
-- **Model** (`app/models/deepfake_detector.py`): an EfficientNet-B0 backbone pretrained on ImageNet, followed by a 768-d embedding layer and an MLP head with sigmoid output. `CLIPBasedDetector` is a stub for an alternative backbone.
-- **Preprocessing** (`app/services/image_processing.py`): resizes to 224×224 with ImageNet normalisation.
-- **Hashing** (`app/utils/hashing.py`): SHA-256 plus perceptual hashes (pHash, dHash, aHash), for caching and near-duplicate lookup.
+```
+decode (frames.py) → quality gate (quality.py) → face / scene / temporal heads → fuse (aggregate.py)
+```
+
+- **Quality gate** (`quality.py`):
+  - Drops frames that are blank or smaller than 144 px.
+  - Flags low resolution, blur and screen capture.
+  - Rejects bursts that contain a scene cut or no motion. A static burst would look "too smooth" to D3, which reads smoothness as a sign of AI.
+- **Face head** (`heads/face.py`):
+  - YuNet finds faces of at least 64 px. Each face is aligned exactly as GenD's training data was, at the face's own scale.
+  - **GenD** (default `yermandy/GenD_PE_L`) scores each face. A frame scores as its most suspicious face.
+  - With no faces, the head reports `no_faces` and is unavailable, rather than voting "real".
+- **Scene head** (`heads/scene.py`):
+  - A linear probe on frozen CLIP ViT-L/14 features (**UnivFD**), applied to five 224 px crops per frame, taken at native resolution and never resized.
+  - The bundled probe (`weights/univfd_fc.pth`) is UnivFD's original, trained on ProGAN images, so treat it as a baseline. Retraining it on modern video generators only means swapping that 768→1 layer (`SCENE_HEAD_WEIGHTS`).
+- **Temporal head** (`heads/temporal.py`):
+  - **D3**: the standard deviation of second-order differences between XCLIP-B/16 frame features, on 16-frame bursts at 8 fps. Low variation means AI.
+  - The statistic has no built-in threshold. Until `D3_MIDPOINT` is set with `scripts/calibrate_d3.py`, the head reports the raw value with `reason: "uncalibrated"` and stays out of the verdict.
+- **Fusion** (`aggregate.py`):
+  - Each head's per-frame scores are averaged in logit space. The top-25% mean is reported as `peak`, to surface partial edits.
+  - Heads that produced a probability are averaged in logit space.
+  - Bands:
+    - `likely_ai`: the fused score is at least 0.85, or one head is at least 0.95 across 3 or more frames. A confident face-swap hit is not averaged away by a scene head that has nothing to say about faces.
+    - `no_evidence`: the fused score is at most 0.35, with no high peak and good input.
+    - `inconclusive`: everything else.
+  - `calibrated` stays false until the heads and the fuser are fitted on held-out data.
+
+Hugging Face weights download into `weights/` on first start (about 4 GB), and only the 4 KB UnivFD probe is committed. Licences are listed in `weights/NOTICE.md`. Vendored GenD and UnivFD code sits under `app/vendor/`, with its MIT licences.
 
 ## Planned request flow
 
@@ -143,29 +172,27 @@ This is the target end-to-end flow. The steps marked ✗ in "Current state" belo
 
 ## Current state and gaps
 
-The pipeline currently ends after frame capture. Everything after that is mocked or missing.
+Detection v1 works end to end in development: extension → AI service → result in the popup. What's left is routing it through the API, and calibration.
 
 | Area | Status |
 | --- | --- |
-| Frame capture in the content script | ✓ Works on playing, same-origin or CORS-enabled videos |
-| Popup state machine and UI | ✓ UI exists. ✗ The analysis progress bar is a timer, and the result in `AnalysisCompleteCard.vue` is hard-coded (`isAI: false, confidence: 75`) |
+| Frame capture in the content script | ✓ Sparse frames and 8 fps bursts via canvas. ✓ Tab-capture fallback for tainted canvases (no bursts). ✗ DRM video still yields nothing |
+| Popup state machine and UI | ✓ Calls the AI service and shows the verdict band, per-head scores and quality flags. ⚠ Calls the AI service directly instead of going through the API |
 | Popup auth | ✗ `TabCards.vue` writes a fake token to `localStorage` and never calls the API. The user shown in `HomeView` is hard-coded |
 | API auth routes | ✓ Sign-up and sign-in exist. ✗ No session middleware protects other routes yet |
 | API detection routes | ✗ None. The API never calls the AI service |
-| AI service model | ✗ There are no trained weights. If `MODEL_PATH` is missing, the service falls back to an ImageNet backbone with an untrained head, so `ai_score` means nothing |
-| AI service `/analyze` | ⚠ Mixes an optional `UploadFile` with a JSON body model, which FastAPI does not support in one route |
-| docker-compose | ⚠ Points at `ai_service/.Dockerfile`, but the file is `Dockerfile`. There is no `api/Dockerfile` and no `init.sql`. It reserves an NVIDIA GPU, which does not work on macOS |
-| Tests | ✗ The extension has no unit tests, the API has none, and the AI service has `tests/test_api.py` |
+| AI service heads | ✓ Face (GenD), scene (UnivFD) and temporal (D3), with pretrained weights. ✗ Nothing is calibrated on production-like data. ✗ The scene probe is trained on GAN images, not modern video generators. ✗ D3 has no threshold until it is calibrated |
+| docker-compose | ⚠ There is no `api/Dockerfile` and no `init.sql`. It reserves an NVIDIA GPU, which does not work on macOS. The AI service image has not been rebuilt since the v1 changes |
+| Tests | ✓ The AI service has unit tests for the quality gate, fusion, head maths and the endpoint, using stub heads. ✗ The extension and the API have none |
 
 ## Known constraints
 
 These affect the design, not just the implementation.
 
 - **Tainted canvases.** `drawImage` on a cross-origin video without CORS headers taints the canvas, and `toDataURL` then throws. Many hosts serve video through MSE/blob URLs, which work, but some players and all DRM (EME) content will never yield pixels. A fallback is `tabs.captureVisibleTab`, which screenshots the visible tab but also captures overlays and the page's own scaling.
-- **Seeking changes the user's video.** The capture loop seeks the player and then restores its position. On streaming sites, seeking can trigger buffering or ads. A gentler mode would capture frames at natural playback time using `requestVideoFrameCallback`.
-- **Temporal signal.** Frames 0.5 s or more apart are good for frame-level classifiers but discard the frame-to-frame motion that video-level detectors rely on. The research doc recommends also capturing short bursts of consecutive frames.
-- **Compression.** Frames have already been through the platform's re-encode and then through our own JPEG encode at quality 0.8. Detectors must be trained and evaluated on frames with similar compression. A lossless (PNG) or high-quality capture option avoids adding another round of artefacts.
-- **Payload size.** Full-resolution base64 JPEGs are large. Resize or crop on the client before upload, but only in ways the model was trained to expect.
+- **Seeking changes the user's video.** Sparse capture seeks the player and then restores its position. On streaming sites, seeking can trigger buffering or ads. A seek that takes longer than 5 s just loses that frame.
+- **Compression.** Frames have already been through the platform's re-encode and then our JPEG encode at quality 0.95. Detectors must be calibrated on frames that went through the same path.
+- **Payload size.** A 1080p frame is about 300–500 KB as JPEG, so a full capture (up to 32 sparse frames plus 32 burst frames) is roughly 10–30 MB of base64. PNG would be about 6× larger. Frames are never resized beyond the 1920 px cap, because resampling destroys the artefacts the detectors look for.
 - **Manifest V2.** Chrome no longer supports MV2. Shipping on Chrome needs an MV3 manifest, which replaces the background page with a service worker.
 - **Privacy.** Frames can contain personal content. Store hashes and scores, not frames, unless the user opts in, for example by reporting a misclassification.
 
@@ -177,9 +204,9 @@ No current detector generalises reliably to the latest commercial generators, so
 
 1. **Quality gate**: resolution, blur, black frames and shot boundaries. Poor input lowers the confidence ceiling.
 2. **Face head**: face crops scored by **GenD** (MIT, pretrained weights), for face swaps and reenactment.
-3. **Scene head**: full frames scored by a light head on frozen CLIP, DINOv3 or Perception Encoder features, trained on modern generated-video datasets. This head catches fully synthetic video, where face models fail.
+3. **Scene head**: full frames scored by a light head on frozen foundation-model features, for fully synthetic video where face models fail. v1 ships UnivFD's CLIP probe as a baseline. Retraining that probe on modern generated-video datasets is the main accuracy upgrade.
 4. **Temporal head**: **D3** (MIT, training-free) on bursts of consecutive frames, for motion artefacts that single frames cannot show.
-5. **Provenance and watermarks**: open watermark decoders and visible-logo detection, reported separately. C2PA metadata does not survive frame capture. SynthID does, but it has no public verification API.
+5. **Provenance and watermarks** (not in v1): open watermark decoders and visible-logo detection, reported separately. C2PA metadata does not survive frame capture. SynthID does, but it has no public verification API.
 6. **Aggregate**:
    - Combine per-frame scores robustly (a top-k mean catches partial edits).
    - Fuse the heads.
@@ -188,9 +215,9 @@ No current detector generalises reliably to the latest commercial generators, so
 
 What this requires elsewhere in the system:
 
-- **Extension:**
-  - Capture 16–32 sparse frames plus short bursts of consecutive frames via `requestVideoFrameCallback`.
-  - Use PNG or high-quality JPEG at native resolution.
-  - Record the capture method and the rendition size with each frame.
-- **API:** store every head's output and the model versions in `detection_methods_used` and `provider_results`, so heads can be added or swapped without schema changes.
+- **Extension (done):**
+  - Captures sparse frames plus 8 fps bursts via `requestVideoFrameCallback`.
+  - Uses high-quality JPEG at native resolution.
+  - Tags each frame with its capture method and the rendition size.
+- **API (to do):** store every head's output and the model versions in `detection_methods_used` and `provider_results`, so heads can be added or swapped without schema changes.
 - **Training:** real and fake data go through the same encode → canvas → image path as production, and visible watermarks are masked so the model can't learn them as a shortcut.

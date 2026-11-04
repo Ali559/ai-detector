@@ -16,11 +16,10 @@ help:
 install:
 	pip install --upgrade pip
 	pip install -r requirements.txt
-	pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 install-dev:
 	pip install -r requirements.txt
-	pip install pytest pytest-asyncio httpx black isort flake8
+	pip install black isort flake8
 
 dev:
 	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -32,7 +31,7 @@ run:
 	docker run -p 8000:8000 --gpus all ai-service:latest
 
 test:
-	pytest tests/ -v --cov=app --cov-report=html
+	pytest tests/ -v
 
 test-quick:
 	pytest tests/ -v -x

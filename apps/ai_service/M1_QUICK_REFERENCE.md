@@ -1,3 +1,5 @@
+> **Outdated:** this guide predates detection v1. Endpoints, model and environment variables have changed; see [README.md](README.md).
+
 # 🍎 M1 Mac - Quick Reference
 
 ## TL;DR - Get Started in 2 Minutes
