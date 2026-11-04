@@ -1,0 +1,50 @@
+{
+  "name": "ai-detector-server",
+  "type": "module",
+  "version": "0.0.1",
+  "repository": {
+    "url": "https://github.com/Ali559/ai-detector-server.git",
+    "type": "git"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "lint": "eslint . --ext .js,.ts",
+    "lint:fix": "eslint . --ext .js,.ts --fix",
+    "format": "prettier --write .",
+    "check:format": "prettier --check .",
+    "lint-format": "pnpm format && pnpm lint"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.1.0",
+    "@fastify/type-provider-typebox": "^6.0.0",
+    "@sinclair/typebox": "^0.34.41",
+    "better-auth": "^1.0.0",
+    "drizzle-orm": "^0.44.6",
+    "fastify": "^5.0.0",
+    "pg": "^8.11.0",
+    "pino-pretty": "^13.1.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0",
+    "dotenv": "^16.0.0",
+    "drizzle-kit": "^0.31.5",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "fastify-plugin": "^4.5.0",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.46.1"
+  }
+}

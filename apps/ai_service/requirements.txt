@@ -1,0 +1,27 @@
+# FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Pydantic for validation
+pydantic==2.5.0
+
+# Image processing
+Pillow==10.1.0
+imagehash==4.3.1
+
+# PyTorch for M1 Mac (use MPS backend)
+# Install with: pip install torch torchvision torchaudio
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Additional utilities
+numpy==1.24.3
+python-dotenv==1.0.0
+
+# HTTP client for health checks
+requests==2.31.0
+
+# Optional: Model loading from Hugging Face
+# transformers==4.35.0
+# timm==0.9.12
